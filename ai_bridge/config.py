@@ -187,16 +187,31 @@ def set_active_model(value: str):
     save(data)
 
 
+def _claude_desktop_alias_map() -> dict:
+    """Map Claude-compatible picker IDs to real upstream provider/model IDs.
+
+    Claude Desktop filters its gateway picker for Claude-shaped model IDs.
+    The visible label still names the actual upstream model/provider; proxy
+    requests are translated back through this map.
+    """
+    models = all_picker_models()
+    active = get_active_model()
+    models.sort(key=lambda model: (model['value'] != active, model['value'].casefold()))
+    aliases = {}
+    for index, model in enumerate(models, start=1):
+        alias = 'claude-sonnet-5' if index == 1 else f'claude-sonnet-5-{index}'
+        aliases[alias] = model['value']
+    return aliases
+
+
 def claude_desktop_models() -> list:
-    """Expose the actual configured upstream model IDs to Claude Desktop's gateway."""
-    result = []
-    for provider in get_providers():
-        for model in provider.get('models', []):
-            result.append({
-                'name': f"{provider['name']}/{model['id']}",
-                'labelOverride': f"{model.get('label', model['id'])} · {provider['name']}",
-            })
-    return result
+    """Return Claude Desktop gateway model objects with valid IDs and honest labels."""
+    aliases = _claude_desktop_alias_map()
+    labels = {model['value']: model['label'] for model in all_picker_models()}
+    return [
+        {'id': alias, 'name': f"{labels[upstream]} (AI Bridge)"}
+        for alias, upstream in aliases.items()
+    ]
 
 
 def claude_code_models() -> list:
@@ -211,6 +226,7 @@ def claude_code_models() -> list:
 
 
 def get_provider_for_model(model: str) -> Optional[dict]:
+    model = _claude_desktop_alias_map().get(model, model)
     for provider in get_providers():
         for configured_model in provider.get('models', []):
             label = configured_model.get('label', configured_model['id'])
@@ -225,6 +241,7 @@ def get_provider_for_model(model: str) -> Optional[dict]:
 
 def get_model_id(model: str) -> Optional[str]:
     """Return the actual upstream model ID for any supported client model ID."""
+    model = _claude_desktop_alias_map().get(model, model)
     for provider in get_providers():
         for configured_model in provider.get('models', []):
             label = configured_model.get('label', configured_model['id'])

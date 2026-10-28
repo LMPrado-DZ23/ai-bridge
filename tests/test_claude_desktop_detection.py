@@ -1,7 +1,9 @@
-"""Regression tests for Claude Desktop MSIX detection and supported gateway config."""
+"""Tests for Claude Desktop's local configLibrary gateway integration."""
 import json
 
-from ai_bridge import claude_desktop, claude_desktop_gateway
+import pytest
+
+from ai_bridge import claude_desktop, claude_desktop_gateway, config
 
 
 def test_resolve_uses_existing_msix_user_data_config(tmp_path, monkeypatch):
@@ -11,7 +13,7 @@ def test_resolve_uses_existing_msix_user_data_config(tmp_path, monkeypatch):
     custom.mkdir(parents=True)
     (custom / "claude_desktop_config.json").write_text('{"preferences": {}}', encoding="utf-8")
     (appdata / "Claude").mkdir(parents=True)
-    (appdata / "Claude" / "claude_desktop_config.json").write_text('{}', encoding="utf-8")
+    (appdata / "Claude" / "claude_desktop_config.json").write_text("{}", encoding="utf-8")
     monkeypatch.setattr(claude_desktop.sys, "platform", "win32")
     monkeypatch.setenv("LOCALAPPDATA", str(local))
     monkeypatch.setenv("APPDATA", str(appdata))
@@ -31,149 +33,148 @@ def test_detects_msix_install_without_legacy_appdata_config(tmp_path, monkeypatc
     assert claude_desktop._is_installed() is True
 
 
-class FakeKey:
-    def __init__(self, store, identity):
-        self.store = store
-        self.identity = identity
-
-    def __enter__(self):
-        return self
-
-    def __exit__(self, *args):
-        return False
-
-
-class FakeWinreg:
-    HKEY_CURRENT_USER = "HKCU"
-    HKEY_LOCAL_MACHINE = "HKLM"
-    KEY_READ = 1
-    KEY_SET_VALUE = 2
-    REG_SZ = 1
-    REG_DWORD = 4
-
-    def __init__(self):
-        self.store = {}
-
-    def OpenKey(self, root, path, reserved=0, access=0):
-        identity = (root, path)
-        if identity not in self.store:
-            raise FileNotFoundError(path)
-        return FakeKey(self.store, identity)
-
-    def CreateKeyEx(self, root, path, reserved=0, access=0):
-        identity = (root, path)
-        self.store.setdefault(identity, {})
-        return FakeKey(self.store, identity)
-
-    def EnumValue(self, key, index):
-        values = list(key.store[key.identity].items())
-        if index >= len(values):
-            raise OSError("no more values")
-        name, (value, kind) = values[index]
-        return name, value, kind
-
-    def SetValueEx(self, key, name, reserved, kind, value):
-        key.store[key.identity][name] = (value, kind)
-
-    def DeleteValue(self, key, name):
-        if name not in key.store[key.identity]:
-            raise FileNotFoundError(name)
-        del key.store[key.identity][name]
-
-    def CloseKey(self, key):
-        pass
-
-
-def _prepare_gateway_test(tmp_path, monkeypatch):
-    fake = FakeWinreg()
+def _prepare_gateway_test(tmp_path, monkeypatch, meta=None):
     local = tmp_path / "Local"
-    backup_dir = local / "AI-Bridge" / "backups"
+    library = local / "Claude-3p" / "configLibrary"
+    library.mkdir(parents=True)
+    meta_file = library / "_meta.json"
+    if meta is not None:
+        meta_file.write_text(json.dumps(meta, indent=2), encoding="utf-8")
     app_config = local / "Claude-3p" / "claude_desktop_config.json"
-    app_config.parent.mkdir(parents=True)
-    app_config.write_text(json.dumps({"preferences": {"theme": "dark"}, "deploymentMode": "1p"}), encoding="utf-8")
-    monkeypatch.setattr(claude_desktop_gateway, "_registry", lambda: fake)
-    monkeypatch.setattr(claude_desktop_gateway, "_BACKUP_DIR", backup_dir)
-    monkeypatch.setattr(claude_desktop_gateway, "_BACKUP_FILE", backup_dir / "claude-desktop-policy.json")
+    app_config.write_text(json.dumps({
+        "preferences": {"theme": "dark", "keep": True},
+        "deploymentMode": "1p",
+    }), encoding="utf-8")
+    backup_dir = tmp_path / ".ai-bridge" / "backups"
+    backup_file = backup_dir / "claude-desktop-config-library.json"
+    monkeypatch.setattr(claude_desktop_gateway.sys, "platform", "win32")
+    monkeypatch.setattr(claude_desktop_gateway, "_CONFIG_LIBRARY", library)
+    monkeypatch.setattr(claude_desktop_gateway, "_META_FILE", meta_file)
     monkeypatch.setattr(claude_desktop_gateway, "_APP_CONFIG", app_config)
-    return fake, app_config, backup_dir
+    monkeypatch.setattr(claude_desktop_gateway, "_BACKUP_DIR", backup_dir)
+    monkeypatch.setattr(claude_desktop_gateway, "_BACKUP_FILE", backup_file)
+    return library, meta_file, app_config, backup_dir, backup_file
 
 
-def test_connect_uses_gateway_settings_and_preserves_app_preferences(tmp_path, monkeypatch):
-    fake, app_config, backup_dir = _prepare_gateway_test(tmp_path, monkeypatch)
-    result = claude_desktop_gateway.configure(38771, [
-        {"name": "DeepSeek/deepseek-chat", "labelOverride": "DeepSeek Chat · DeepSeek"}
-    ])
+def _models():
+    return [
+        {"id": "claude-sonnet-5", "name": "DeepSeek Flash · DeepSeek (AI Bridge)"},
+        {"id": "claude-sonnet-5-2", "name": "DeepSeek V4 Pro · DeepSeek (AI Bridge)"},
+    ]
 
-    values = fake.store[("HKCU", r"SOFTWARE\Policies\Claude")]
+
+def test_connect_writes_official_config_library_and_preserves_app_settings(tmp_path, monkeypatch):
+    original_meta = {"entries": ["preexisting-entry"], "appliedId": "preexisting-entry"}
+    library, meta_file, app_config, backup_dir, backup_file = _prepare_gateway_test(
+        tmp_path, monkeypatch, original_meta
+    )
+    existing_entry = library / "preexisting-entry.json"
+    existing_entry.write_text(json.dumps({"inferenceProvider": "gateway", "inferenceGatewayBaseUrl": "https://old.example"}), encoding="utf-8")
+
+    result = claude_desktop_gateway.configure(38771, _models())
+
     assert result["ok"] is True
-    assert values["inferenceProvider"] == ("gateway", fake.REG_SZ)
-    assert values["inferenceGatewayBaseUrl"] == ("http://127.0.0.1:38771", fake.REG_SZ)
-    assert values["inferenceGatewayApiKey"] == ("ai-bridge-local", fake.REG_SZ)
-    assert values["inferenceCredentialKind"] == ("static", fake.REG_SZ)
-    assert values["modelDiscoveryEnabled"] == ("false", fake.REG_SZ)
-    assert json.loads(values["inferenceModels"][0])[0]["name"] == "DeepSeek/deepseek-chat"
+    assert result["restart_required"] is True
+    assert result["models"] == 2
+    assert result["config_path"] == str(library / f"{result['config_id']}.json")
+    meta = json.loads(meta_file.read_text(encoding="utf-8"))
+    assert meta["appliedId"] == result["config_id"]
+    assert meta["entries"] == ["preexisting-entry"]
+    entry = json.loads((library / f"{result['config_id']}.json").read_text(encoding="utf-8"))
+    assert entry["inferenceProvider"] == "gateway"
+    assert entry["inferenceCredentialKind"] == "static"
+    assert entry["inferenceGatewayBaseUrl"] == "http://127.0.0.1:38771"
+    assert entry["inferenceGatewayApiKey"] == "ai-bridge-local"
+    assert entry["inferenceGatewayAuthScheme"] == "bearer"
+    assert entry["modelDiscoveryEnabled"] is False
+    assert entry["inferenceModels"] == _models()
     app = json.loads(app_config.read_text(encoding="utf-8"))
-    assert app["preferences"]["theme"] == "dark"
+    assert app["preferences"] == {"theme": "dark", "keep": True}
     assert app["deploymentMode"] == "3p"
-    assert (backup_dir / "claude-desktop-policy.json").exists()
+    assert backup_file.exists()
+    assert existing_entry.exists()
+    assert claude_desktop_gateway.is_configured(38771)
 
 
-def test_disconnect_restores_existing_user_policy_and_original_mode(tmp_path, monkeypatch):
-    fake, app_config, backup_dir = _prepare_gateway_test(tmp_path, monkeypatch)
-    policy_path = r"SOFTWARE\Policies\Claude"
-    fake.store[("HKCU", policy_path)] = {
-        "inferenceProvider": ("old-provider", fake.REG_SZ),
-        "inferenceGatewayBaseUrl": ("https://old.example", fake.REG_SZ),
-        "unrelatedSetting": ("keep-me", fake.REG_SZ),
-    }
-    claude_desktop_gateway.configure(38771, [
-        {"name": "DeepSeek/deepseek-chat", "labelOverride": "Test model"}
-    ])
+def test_connect_without_prior_meta_creates_applied_id_and_disconnect_restores_original_mode(tmp_path, monkeypatch):
+    library, meta_file, app_config, backup_dir, backup_file = _prepare_gateway_test(tmp_path, monkeypatch)
+
+    result = claude_desktop_gateway.configure(38771, _models())
+    assert result["ok"] is True
+    assert json.loads(meta_file.read_text(encoding="utf-8"))["appliedId"] == result["config_id"]
+
     claude_desktop_gateway.disconnect()
 
-    values = fake.store[("HKCU", policy_path)]
-    assert values["inferenceProvider"] == ("old-provider", fake.REG_SZ)
-    assert values["inferenceGatewayBaseUrl"] == ("https://old.example", fake.REG_SZ)
-    assert values["unrelatedSetting"] == ("keep-me", fake.REG_SZ)
+    assert not meta_file.exists()
+    assert not (library / f"{result['config_id']}.json").exists()
     app = json.loads(app_config.read_text(encoding="utf-8"))
-    assert app["preferences"]["theme"] == "dark"
-    assert app["deploymentMode"] == "1p"  # prior app mode was restored
-    assert not (backup_dir / "claude-desktop-policy.json").exists()
+    assert app["preferences"] == {"theme": "dark", "keep": True}
+    assert app["deploymentMode"] == "1p"
+    assert not backup_file.exists()
+    assert not claude_desktop_gateway.is_configured()
 
 
-def test_connect_refuses_machine_managed_gateway(tmp_path, monkeypatch):
-    fake, app_config, backup_dir = _prepare_gateway_test(tmp_path, monkeypatch)
-    fake.store[("HKLM", r"SOFTWARE\Policies\Claude")] = {
-        "inferenceProvider": ("gateway", fake.REG_SZ),
-        "inferenceGatewayBaseUrl": ("https://managed.example", fake.REG_SZ),
-    }
-    try:
-        claude_desktop_gateway.configure(38771, [
-            {"name": "DeepSeek/deepseek-chat", "labelOverride": "Test model"}
-        ])
-    except RuntimeError as exc:
-        assert "gerenciado" in str(exc)
-    else:
-        raise AssertionError("machine-managed gateway must not be overwritten")
-    assert ("HKCU", r"SOFTWARE\Policies\Claude") not in fake.store
+def test_disconnect_restores_previous_metadata_and_preserves_other_entry(tmp_path, monkeypatch):
+    original_meta = {"entries": ["existing"], "appliedId": "existing"}
+    library, meta_file, app_config, backup_dir, backup_file = _prepare_gateway_test(
+        tmp_path, monkeypatch, original_meta
+    )
+    (library / "existing.json").write_text(json.dumps({"inferenceProvider": "gateway", "inferenceGatewayBaseUrl": "https://old.example"}), encoding="utf-8")
+    result = claude_desktop_gateway.configure(38771, _models())
+
+    claude_desktop_gateway.disconnect()
+
+    assert json.loads(meta_file.read_text(encoding="utf-8")) == original_meta
+    assert (library / "existing.json").exists()
+    assert not (library / f"{result['config_id']}.json").exists()
+    assert json.loads(app_config.read_text(encoding="utf-8"))["deploymentMode"] == "1p"
+    assert not backup_file.exists()
 
 
-def test_disconnect_preserves_gateway_not_owned_by_ai_bridge(tmp_path, monkeypatch):
-    fake, app_config, backup_dir = _prepare_gateway_test(tmp_path, monkeypatch)
-    policy_path = r"SOFTWARE\Policies\Claude"
-    fake.store[("HKCU", policy_path)] = {
-        "inferenceProvider": ("gateway", fake.REG_SZ),
-        "inferenceGatewayBaseUrl": ("https://external.example", fake.REG_SZ),
-        "inferenceGatewayApiKey": ("external-secret", fake.REG_SZ),
-    }
+def test_disconnect_does_not_override_a_profile_switched_by_the_user(tmp_path, monkeypatch):
+    library, meta_file, app_config, _, backup_file = _prepare_gateway_test(tmp_path, monkeypatch)
+    result = claude_desktop_gateway.configure(38771, _models())
+    meta = json.loads(meta_file.read_text(encoding="utf-8"))
+    meta["appliedId"] = "another-profile"
+    meta_file.write_text(json.dumps(meta), encoding="utf-8")
 
-    try:
-        claude_desktop_gateway.disconnect()
-    except RuntimeError as exc:
-        assert "foi preservada" in str(exc)
-    else:
-        raise AssertionError("external gateway must not be removed without an AI Bridge backup")
+    claude_desktop_gateway.disconnect()
 
-    values = fake.store[("HKCU", policy_path)]
-    assert values["inferenceGatewayBaseUrl"] == ("https://external.example", fake.REG_SZ)
-    assert values["inferenceGatewayApiKey"] == ("external-secret", fake.REG_SZ)
+    assert json.loads(meta_file.read_text(encoding="utf-8"))["appliedId"] == "another-profile"
+    assert not (library / f"{result['config_id']}.json").exists()
+    # The user selected another profile; keep the 3p mode rather than force 1p.
+    assert json.loads(app_config.read_text(encoding="utf-8"))["deploymentMode"] == "3p"
+    assert not backup_file.exists()
+
+
+def test_invalid_meta_json_is_preserved(tmp_path, monkeypatch):
+    library, meta_file, app_config, _, backup_file = _prepare_gateway_test(tmp_path, monkeypatch)
+    meta_file.write_text("{broken", encoding="utf-8")
+
+    with pytest.raises(RuntimeError, match="JSON válido"):
+        claude_desktop_gateway.configure(38771, _models())
+
+    assert meta_file.read_text(encoding="utf-8") == "{broken"
+    assert not backup_file.exists()
+
+
+def test_claude_desktop_models_use_claude_compatible_ids_and_route_to_upstream(monkeypatch):
+    providers = [{
+        "name": "DeepSeek",
+        "api_key": "test-key",
+        "base_url": "https://api.example/v1",
+        "models": [
+            {"id": "deepseek-flash", "label": "DeepSeek Flash"},
+            {"id": "deepseek-v4-pro", "label": "DeepSeek V4 Pro"},
+        ],
+    }]
+    monkeypatch.setattr(config, "get_providers", lambda: providers)
+    monkeypatch.setattr(config, "load", lambda: {"active_model": "DeepSeek/deepseek-v4-pro"})
+
+    models = config.claude_desktop_models()
+
+    assert models[0] == {"id": "claude-sonnet-5", "name": "DeepSeek V4 Pro · DeepSeek (AI Bridge)"}
+    assert models[1] == {"id": "claude-sonnet-5-2", "name": "DeepSeek Flash · DeepSeek (AI Bridge)"}
+    assert config.get_provider_for_model("claude-sonnet-5")["name"] == "DeepSeek"
+    assert config.get_model_id("claude-sonnet-5") == "deepseek-v4-pro"
+    assert config.get_model_id("claude-sonnet-5-2") == "deepseek-flash"

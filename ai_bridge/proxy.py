@@ -133,10 +133,11 @@ def models():
 
 @app.route('/v1/codex-models')
 def codex_models():
-    """Return the Codex-native model catalog, not the OpenAI /v1/models schema."""
-    if request.headers.get('Authorization') != 'Bearer ai-bridge-local':
-        return jsonify({'error': 'unauthorized'}), 401
+    """Return non-secret Codex model metadata for the loopback-only model picker.
 
+    Codex may fetch model_catalog_url without forwarding provider authorization.
+    The route exposes only configured model IDs/labels, never provider credentials.
+    """
     catalog = []
     for provider in cfg.get_providers():
         for model in provider.get('models', []):

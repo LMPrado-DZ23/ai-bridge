@@ -11,6 +11,7 @@ from typing import Optional
 
 CODEX_DIR = Path.home() / ".codex"
 CODEX_CONFIG = CODEX_DIR / "config.toml"
+CODEX_CATALOG_FILE = CODEX_DIR / "ai-bridge-models.json"
 _BRIDGE_TAG = "# ai-bridge-managed"
 _BRIDGE_PROVIDER = "ai_bridge"
 _STATE_FILE = CODEX_DIR / ".ai-bridge-state.json"
@@ -64,6 +65,52 @@ def _remove_root_key(root, key):
     return [line for line in root if not line.strip().startswith(prefix)]
 
 
+def _write_catalog_file():
+    """Write the local catalog consumed by Codex Desktop's model selector."""
+    from . import config as cfg
+
+    models = []
+    for picker_model in cfg.all_picker_models():
+            model_id = picker_model["value"]
+            label = picker_model["label"]
+            provider_name = model_id.split("/", 1)[0]
+            models.append({
+                "slug": model_id,
+                "display_name": label,
+                "description": f"{label} via AI Bridge ({provider_name}).",
+                "default_reasoning_level": "medium",
+                "supported_reasoning_levels": [
+                    {"effort": "low", "description": "Respostas mais rápidas."},
+                    {"effort": "medium", "description": "Equilíbrio entre velocidade e profundidade."},
+                    {"effort": "high", "description": "Maior profundidade para tarefas complexas."},
+                ],
+                "shell_type": "shell_command",
+                "visibility": "list",
+                "supported_in_api": True,
+                "priority": len(models) + 1,
+                "additional_speed_tiers": [],
+                "service_tiers": [],
+                "default_service_tier": None,
+                "availability_nux": None,
+                "upgrade": None,
+                "support_verbosity": False,
+                "default_verbosity": None,
+                "apply_patch_tool_type": "freeform",
+                "web_search_tool_type": "text",
+                "truncation_policy": {"mode": "tokens", "limit": 10000},
+                "effective_context_window_percent": 95,
+                "experimental_supported_tools": [],
+                "input_modalities": ["text"],
+                "base_instructions": "Modelo externo conectado pelo AI Bridge. Siga as instruções do usuário.",
+            })
+    if not models:
+        raise RuntimeError("O catálogo do Codex está vazio; adicione um provedor/modelo antes de conectar.")
+    CODEX_DIR.mkdir(parents=True, exist_ok=True)
+    temp = CODEX_CATALOG_FILE.with_name(CODEX_CATALOG_FILE.name + ".tmp")
+    temp.write_text(json.dumps({"models": models}, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    temp.replace(CODEX_CATALOG_FILE)
+
+
 def _write_config(port: Optional[int]):
     from . import config as cfg
 
@@ -94,15 +141,25 @@ def _write_config(port: Optional[int]):
             rest_lines.append(line)
         root = _remove_root_key(root, "model_provider")
         root = _remove_root_key(root, "model")
+        root = _remove_root_key(root, "model_catalog_json")
         if state.get("original_model_provider") is not None:
             root.append(state["original_model_provider"])
         if state.get("original_model") is not None:
             root.append(state["original_model"])
+        if state.get("original_model_catalog_json") is not None:
+            root.append(state["original_model_catalog_json"])
         new_lines = root + rest_lines
         content = "\n".join(new_lines).strip()
         tmp = CODEX_CONFIG.with_suffix(".tmp")
         tmp.write_text(content + "\n" if content else "", encoding="utf-8")
         tmp.replace(CODEX_CONFIG)
+        if state.get("original_catalog_existed"):
+            catalog_backup_path = Path(state.get("original_catalog_backup") or "")
+            if catalog_backup_path.is_file():
+                shutil.copy2(catalog_backup_path, CODEX_CATALOG_FILE)
+                catalog_backup_path.unlink(missing_ok=True)
+        else:
+            CODEX_CATALOG_FILE.unlink(missing_ok=True)
         _STATE_FILE.unlink(missing_ok=True)
         return
 
@@ -120,16 +177,30 @@ def _write_config(port: Optional[int]):
         backup = CODEX_DIR / f"config.toml.ai-bridge-backup-{stamp}.bak"
         if CODEX_CONFIG.exists():
             shutil.copy2(CODEX_CONFIG, backup)
+        catalog_backup = None
+        if CODEX_CATALOG_FILE.exists():
+            catalog_backup = CODEX_CATALOG_FILE.with_name(f"ai-bridge-models.json.ai-bridge-backup-{stamp}.bak")
+            shutil.copy2(CODEX_CATALOG_FILE, catalog_backup)
         state = {
             "backup": str(backup) if CODEX_CONFIG.exists() else None,
             "original_model_provider": _root_value(root, "model_provider"),
             "original_model": _root_value(root, "model"),
+            "original_model_catalog_json": _root_value(root, "model_catalog_json"),
+            "original_catalog_existed": CODEX_CATALOG_FILE.exists(),
+            "original_catalog_backup": str(catalog_backup) if catalog_backup else None,
         }
         _STATE_FILE.write_text(json.dumps(state, indent=2), encoding="utf-8")
 
+    _write_catalog_file()
+
     root = _remove_root_key(root, "model_provider")
     root = _remove_root_key(root, "model")
-    root.extend([f'model_provider = "{_BRIDGE_PROVIDER}"', f'model = "{default_model}"'])
+    root = _remove_root_key(root, "model_catalog_json")
+    root.extend([
+        f'model_provider = "{_BRIDGE_PROVIDER}"',
+        f'model = "{default_model}"',
+        'model_catalog_json = "~/.codex/ai-bridge-models.json"',
+    ])
 
     # Remove an earlier managed block only; all unrelated provider blocks remain untouched.
     rest_lines = []

@@ -81,12 +81,14 @@ def test_codex_model_catalog_uses_provider_model_ids(client, monkeypatch):
         ],
     }])
 
-    assert client.get('/v1/codex-models').status_code == 401
-    response = client.get('/v1/codex-models', headers={
-        'Authorization': 'Bearer ai-bridge-local'
-    })
+    # Codex may fetch model_catalog_url without forwarding the provider token.
+    # The route is loopback-only and exposes model metadata, never API keys.
+    response = client.get('/v1/codex-models')
 
     assert response.status_code == 200
+    assert client.get('/v1/codex-models', headers={
+        'Authorization': 'Bearer ai-bridge-local'
+    }).status_code == 200
     models = response.get_json()['models']
     assert [model['slug'] for model in models] == [
         'DeepSeek/deepseek-flash', 'DeepSeek/deepseek-v4-pro'

@@ -22,6 +22,7 @@ wire_api = "responses"
     config_file.write_text(original, encoding="utf-8")
     monkeypatch.setattr(codex, "CODEX_DIR", codex_dir)
     monkeypatch.setattr(codex, "CODEX_CONFIG", config_file)
+    monkeypatch.setattr(codex, "CODEX_CATALOG_FILE", codex_dir / "ai-bridge-models.json")
     monkeypatch.setattr(codex, "_STATE_FILE", codex_dir / ".ai-bridge-state.json")
     monkeypatch.setattr(config, "all_picker_models", lambda: [
         {"value": "DeepSeek/deepseek-chat", "label": "DeepSeek Chat · DeepSeek"}
@@ -36,6 +37,10 @@ wire_api = "responses"
     assert parsed['model_provider'] == 'ai_bridge'
     assert parsed['model_providers']['ai_bridge']['base_url'] == 'http://127.0.0.1:38771/v1'
     assert parsed['model_providers']['ai_bridge']['model_catalog_url'] == 'http://127.0.0.1:38771/v1/codex-models'
+    assert parsed['model_catalog_json'] == '~/.codex/ai-bridge-models.json'
+    catalog = json.loads((codex_dir / 'ai-bridge-models.json').read_text(encoding='utf-8'))
+    assert [model['slug'] for model in catalog['models']] == ['DeepSeek/deepseek-chat']
+    assert catalog['models'][0]['display_name'] == 'DeepSeek Chat · DeepSeek'
     assert '_ai_bridge_port' not in parsed['model_providers']['ai_bridge']
     assert codex._read_port() == 38771
     assert codex.state().connected is True
@@ -48,6 +53,7 @@ wire_api = "responses"
     assert 'base_url = "https://invision.example/v1"' in restored
     assert 'conversationDetailMode = "STEPS_COMMANDS"' in restored
     assert codex.state().connected is False
+    assert not (codex_dir / 'ai-bridge-models.json').exists()
 
 
 def test_responses_request_translates_text_and_function_tools():
@@ -119,7 +125,7 @@ def test_escaped_model_list_is_repaired_with_backup(tmp_path, monkeypatch):
     assert len(original["providers"][0]["models"]) == 1
 
 
-def test_claude_desktop_model_list_uses_real_provider_model_ids(monkeypatch):
+def test_claude_desktop_model_list_uses_compatible_aliases_and_preserves_upstream_ids(monkeypatch):
     monkeypatch.setattr(config, "get_providers", lambda: [{
         "name": "DeepSeek",
         "models": [
@@ -127,13 +133,16 @@ def test_claude_desktop_model_list_uses_real_provider_model_ids(monkeypatch):
             {"id": "deepseek-v4-pro", "label": "DeepSeek V4 Pro"},
         ],
     }])
+    monkeypatch.setattr(config, "load", lambda: {"active_model": "DeepSeek/deepseek-flash"})
     models = config.claude_desktop_models()
 
-    assert [model["name"] for model in models] == [
-        "DeepSeek/deepseek-flash", "DeepSeek/deepseek-v4-pro"
+    assert models == [
+        {"id": "claude-sonnet-5", "name": "DeepSeek Flash · DeepSeek (AI Bridge)"},
+        {"id": "claude-sonnet-5-2", "name": "DeepSeek V4 Pro · DeepSeek (AI Bridge)"},
     ]
-    assert config.get_provider_for_model("DeepSeek/deepseek-v4-pro")["name"] == "DeepSeek"
-    assert config.get_model_id("DeepSeek/deepseek-v4-pro") == "deepseek-v4-pro"
+    assert config.get_provider_for_model("claude-sonnet-5")["name"] == "DeepSeek"
+    assert config.get_model_id("claude-sonnet-5") == "deepseek-flash"
+    assert config.get_model_id("claude-sonnet-5-2") == "deepseek-v4-pro"
 
 
 def test_responses_developer_role_is_mapped_to_supported_system_role():
