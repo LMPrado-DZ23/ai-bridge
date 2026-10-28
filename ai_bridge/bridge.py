@@ -395,5 +395,3 @@ class Bridge:
 
     def get_presets(self) -> dict:
         return {'ok': True, 'presets': _PRESETS}
-
-[executed on device: DZ23_PRADO (23cb9a21-fa9a-41c8-9057-7c779b224cee)]
