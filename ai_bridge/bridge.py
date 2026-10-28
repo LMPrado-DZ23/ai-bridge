@@ -12,6 +12,7 @@ from . import proxy
 from . import claude_code
 from . import claude_desktop
 from . import codex as codex_mod
+from . import launchers
 
 _PRESETS = [
     {
@@ -103,7 +104,7 @@ def _target_state(target_id: str) -> dict:
         s = claude_desktop.state()
         meta = _TARGETS_META[1]
         return {**meta, 'installed': s.installed, 'connected': s.connected, 'port': s.port,
-                'restart_required': s.connected}
+                'mode': s.mode, 'restart_required': s.connected}
     if target_id == 'codex':
         s = codex_mod.state()
         meta = _TARGETS_META[2]
@@ -177,6 +178,9 @@ class Bridge:
             ]
 
             targets = [_target_state(t['id']) for t in _TARGETS_META]
+            picker_models = cfg.all_picker_models()
+            active_model = cfg.get_active_model()
+            active_model_label = next((m['label'] for m in picker_models if m['value'] == active_model), '')
             any_connected = any(t['connected'] for t in targets)
             connected_port = next((t['port'] for t in targets if t['connected']), proxy.get_port())
 
@@ -184,7 +188,10 @@ class Bridge:
                 'ok': True,
                 'providers': summaries,
                 'targets': targets,
-                'model_count': len(cfg.all_picker_models()),
+                'models': picker_models,
+                'active_model': active_model,
+                'active_model_label': active_model_label,
+                'model_count': len(picker_models),
                 # legacy fields for any callers that still check them
                 'connected': any_connected,
                 'port': connected_port,
@@ -259,6 +266,14 @@ class Bridge:
             except Exception as e:
                 return {'ok': False, 'error': str(e)}
 
+    def set_active_model(self, value: str) -> dict:
+        try:
+            cfg.set_active_model(value)
+            self._sync_connected_targets()
+            return {'ok': True, 'active_model': cfg.get_active_model()}
+        except Exception as e:
+            return {'ok': False, 'error': str(e)}
+
     def remove_provider(self, name: str) -> dict:
         with self._lock:
             try:
@@ -281,6 +296,8 @@ class Bridge:
         models = cfg.all_picker_models()
         if claude_code.is_connected():
             claude_code.connect(port, models)
+        if claude_desktop.is_connected():
+            claude_desktop.connect(port)
         if codex_mod.is_connected():
             codex_mod.update_models()
 
@@ -382,6 +399,49 @@ class Bridge:
                 return {'ok': True}
             except Exception as e:
                 return {'ok': False, 'error': str(e)}
+
+    def activate_target(self, target_id: str, mode: str, confirm_restart: bool = False) -> dict:
+        """Switch client mode, apply supported configuration, and open the client."""
+        try:
+            if mode not in ('bridge', 'original'):
+                return {'ok': False, 'error': 'Modo desconhecido.'}
+            current = _target_state(target_id)
+            if not current:
+                return {'ok': False, 'error': f'Target desconhecido: {target_id}'}
+            if not current.get('installed'):
+                return {'ok': False, 'error': 'O aplicativo não foi detectado como instalado.'}
+
+            if target_id == 'claude_desktop':
+                already_in_mode = current.get('mode', 'original') == mode
+            else:
+                already_in_mode = bool(current.get('connected')) == (mode == 'bridge')
+            running = launchers.is_running(target_id)
+            if target_id == 'claude_desktop' and running and not already_in_mode and not confirm_restart:
+                return {
+                    'ok': False,
+                    'confirm_restart': True,
+                    'error': 'O Claude Desktop precisa reiniciar para aplicar a troca de modo. Salve o trabalho aberto antes de continuar.',
+                }
+
+            if not already_in_mode:
+                result = self.connect_target(target_id) if mode == 'bridge' else self.disconnect_target(target_id)
+                if not result.get('ok'):
+                    return result
+
+            launch_result = launchers.launch_target(
+                target_id,
+                restart=(target_id == 'claude_desktop' and running and not already_in_mode),
+            )
+            return {
+                'ok': True,
+                'mode': mode,
+                'launched': launch_result.get('launched', True),
+                'restarted': launch_result.get('restarted', False),
+                'message': ('Modo AI Bridge aplicado.' if mode == 'bridge' else 'Modo original restaurado.')
+                           + ' O aplicativo foi aberto; confirme a primeira chamada antes de considerar a conexão validada.',
+            }
+        except Exception as e:
+            return {'ok': False, 'error': str(e)}
 
     # ── Legacy single-target shims (backward compat) ─────────────────────────
 
