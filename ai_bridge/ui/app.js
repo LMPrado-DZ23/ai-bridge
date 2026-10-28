@@ -331,6 +331,44 @@ function escHtml(str) {
 // ── Wire up static controls ───────────────────────────────────────────────────
 
 function wireControls() {
+  // Frameless windows do not expose a native resize border; use this corner grip.
+  const resizeGrip = document.getElementById('ab-resize-grip');
+  if (resizeGrip) {
+    let drag = null;
+    let resizeTimer = null;
+    let lastSize = '';
+    const sendSize = (width, height) => {
+      const size = `${width}x${height}`;
+      if (size === lastSize || !window.pywebview?.api?.resize_window) return;
+      lastSize = size;
+      window.pywebview.api.resize_window(width, height).catch(() => { lastSize = ''; });
+    };
+    resizeGrip.addEventListener('pointerdown', (event) => {
+      if (event.button !== 0) return;
+      event.preventDefault();
+      drag = { x: event.screenX, y: event.screenY, width: window.innerWidth, height: window.innerHeight };
+      resizeGrip.setPointerCapture(event.pointerId);
+    });
+    resizeGrip.addEventListener('pointermove', (event) => {
+      if (!drag) return;
+      event.preventDefault();
+      const width = Math.max(520, Math.round(drag.width + event.screenX - drag.x));
+      const height = Math.max(500, Math.round(drag.height + event.screenY - drag.y));
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(() => sendSize(width, height), 80);
+    });
+    const stopResize = (event) => {
+      if (!drag) return;
+      const width = Math.max(520, Math.round(drag.width + event.screenX - drag.x));
+      const height = Math.max(500, Math.round(drag.height + event.screenY - drag.y));
+      clearTimeout(resizeTimer);
+      drag = null;
+      sendSize(width, height);
+    };
+    resizeGrip.addEventListener('pointerup', stopResize);
+    resizeGrip.addEventListener('pointercancel', stopResize);
+  }
+
   // Window controls
   document.getElementById('btn-minimize')?.addEventListener('click', () => {
     window.pywebview?.api?.minimize();

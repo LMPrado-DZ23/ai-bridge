@@ -138,6 +138,18 @@ class Bridge:
         if self._window:
             self._window.minimize()
 
+    def resize_window(self, width, height):
+        """Resize the frameless desktop window within a usable minimum size."""
+        if not self._window:
+            return {"ok": False, "error": "Janela indisponível."}
+        try:
+            width = max(520, min(1600, int(width)))
+            height = max(500, min(1200, int(height)))
+        except (TypeError, ValueError, OverflowError):
+            return {"ok": False, "error": "Dimensões inválidas."}
+        self._window.resize(width, height)
+        return {"ok": True, "width": width, "height": height}
+
     def close(self):
         """Hide the window to the system tray (if available) instead of destroying it."""
         if self._window:

@@ -633,3 +633,14 @@ html, body {
   #target-cards { grid-template-columns: minmax(0, 1fr) !important; }
   .ab-target-card { min-height: 102px; padding: 13px; }
 }
+
+/* Borderless pywebview windows need an explicit resize handle on Windows. */
+#ab-resize-grip {
+  position: fixed; right: 1px; bottom: 1px; z-index: 100;
+  width: 20px; height: 20px; cursor: nwse-resize; touch-action: none;
+  opacity: .62;
+  background: linear-gradient(135deg, transparent 0 56%, rgba(148,163,184,.55) 57% 62%, transparent 63% 72%, rgba(148,163,184,.55) 73% 78%, transparent 79%);
+}
+#ab-resize-grip:hover { opacity: 1; }
+#ab-resize-grip:focus-visible { outline: 2px solid #818cf8; outline-offset: -3px; }
+@media (max-width: 460px) { #ab-resize-grip { width: 18px; height: 18px; } }

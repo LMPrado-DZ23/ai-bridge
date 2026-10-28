@@ -6,6 +6,39 @@ import httpx
 from ai_bridge.bridge import Bridge
 
 
+def test_resize_window_clamps_to_minimum_and_maximum():
+    app = Bridge()
+    window = Mock()
+    app.set_window(window)
+
+    result = app.resize_window(100, 100)
+
+    assert result == {"ok": True, "width": 520, "height": 500}
+    window.resize.assert_called_once_with(520, 500)
+
+    result = app.resize_window(9000, 9000)
+
+    assert result == {"ok": True, "width": 1600, "height": 1200}
+    window.resize.assert_called_with(1600, 1200)
+
+
+def test_resize_window_rejects_invalid_dimensions_without_crashing():
+    app = Bridge()
+    window = Mock()
+    app.set_window(window)
+
+    result = app.resize_window("invalid", 700)
+
+    assert result == {"ok": False, "error": "Dimensões inválidas."}
+    window.resize.assert_not_called()
+
+
+def test_resize_window_reports_missing_window():
+    result = Bridge().resize_window(680, 700)
+
+    assert result == {"ok": False, "error": "Janela indisponível."}
+
+
 def test_test_provider_returns_model_count(monkeypatch):
     response = Mock()
     response.status_code = 200
