@@ -1,0 +1,57 @@
+name: Build Binaries
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            artifact_name: AI-Bridge.exe
+            artifact_label: AI-Bridge-Windows
+          - os: ubuntu-latest
+            artifact_name: AI-Bridge
+            artifact_label: AI-Bridge-Linux
+          - os: macos-latest
+            artifact_name: AI-Bridge
+            artifact_label: AI-Bridge-macOS
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Linux system dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y \
+            python3-gi \
+            python3-gi-cairo \
+            gir1.2-gtk-3.0 \
+            gir1.2-webkit2-4.0 \
+            libgtk-3-dev \
+            libwebkit2gtk-4.0-dev
+
+      - name: Install Python dependencies
+        run: pip install -r requirements.txt
+
+      - name: Build binary
+        run: python -m PyInstaller build.spec --noconfirm
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact_label }}
+          path: dist/${{ matrix.artifact_name }}
+          retention-days: 30

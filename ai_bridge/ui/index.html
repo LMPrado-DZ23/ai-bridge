@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>AI Bridge</title>
+  <link rel="stylesheet" href="app.css">
+</head>
+<body>
+
+<!-- Title bar -->
+<header class="ab-bar pywebview-drag-region">
+  <div class="ab-brand pywebview-drag-region">
+    <img src="icons/bridge.svg" width="18" height="18" alt="">
+    <span>AI Bridge</span>
+  </div>
+  <div class="ab-win">
+    <button class="ab-win-btn" id="btn-minimize" aria-label="Minimizar">
+      <svg viewBox="0 0 10 10"><path d="M1 5h8"/></svg>
+    </button>
+    <button class="ab-win-btn ab-win-btn--close" id="btn-close" aria-label="Minimizar para a bandeja">
+      <svg viewBox="0 0 10 10"><path d="M1.5 1.5l7 7M8.5 1.5l-7 7"/></svg>
+    </button>
+  </div>
+</header>
+
+<main class="ab-stage">
+
+  <!-- ── Screen: Home ────────────────────────────────────────────────────── -->
+  <section class="ab-screen" data-screen="home">
+
+    <!-- Providers -->
+    <div>
+      <div class="ab-section-head">
+        <span class="ab-section-title">Provedores</span>
+        <button class="btn btn-ghost btn-sm" id="btn-add-provider">+ Adicionar</button>
+      </div>
+      <div id="provider-list">
+        <!-- populated by JS -->
+      </div>
+    </div>
+
+    <div class="ab-divider"></div>
+
+    <!-- Ferramentas / Targets -->
+    <div>
+      <div class="ab-section-head">
+        <span class="ab-section-title">Ferramentas</span>
+        <span class="ab-hint" id="proxy-hint"></span>
+      </div>
+      <div class="ab-target-list" id="target-list">
+        <!-- populated by JS -->
+      </div>
+    </div>
+
+  </section>
+
+  <!-- ── Screen: Add / Edit Provider ────────────────────────────────────── -->
+  <section class="ab-screen" data-screen="add" hidden>
+
+    <div>
+      <button class="ab-back" id="btn-back">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M9 2L4 7l5 5"/></svg>
+        Voltar
+      </button>
+    </div>
+
+    <div>
+      <div class="ab-screen-title" id="add-screen-title">Novo Provedor</div>
+      <div class="ab-screen-sub">Qualquer API compatível com OpenAI funciona.</div>
+    </div>
+
+    <!-- Presets -->
+    <div>
+      <div class="ab-section-head" style="margin-bottom:6px;">
+        <span class="ab-section-title">Início rápido</span>
+      </div>
+      <div class="ab-preset-list" id="preset-list">
+        <!-- populated by JS -->
+      </div>
+    </div>
+
+    <div class="ab-divider"></div>
+
+    <!-- Form -->
+    <form class="ab-form" id="add-form" autocomplete="off">
+
+      <div class="ab-field">
+        <label class="ab-label" for="f-name">Nome do provedor</label>
+        <input class="ab-input" id="f-name" type="text" placeholder="Ex: DeepSeek, OpenAI, Groq…" required>
+      </div>
+
+      <div class="ab-field">
+        <label class="ab-label" for="f-url">URL base da API</label>
+        <input class="ab-input" id="f-url" type="url" placeholder="https://api.deepseek.com/v1" required>
+      </div>
+
+      <div class="ab-field">
+        <label class="ab-label" for="f-key">Chave de API</label>
+        <div class="ab-row">
+          <input class="ab-input" id="f-key" type="password" placeholder="sk-…" required autocomplete="new-password">
+          <button type="button" class="btn btn-ghost btn-sm" id="btn-show-key">Mostrar</button>
+          <button type="button" class="btn btn-ghost btn-sm" id="btn-test">Testar</button>
+        </div>
+        <div id="test-result" hidden></div>
+      </div>
+
+      <div class="ab-field">
+        <label class="ab-label" for="f-models">Modelos</label>
+        <textarea class="ab-textarea" id="f-models" rows="4"
+          placeholder="deepseek-chat|DeepSeek Chat&#10;deepseek-reasoner|DeepSeek Reasoner&#10;&#10;Formato: id|Nome visível  (ou apenas  id)"></textarea>
+        <div class="ab-hint">
+          Um modelo por linha. Use o formato <code>id|Nome</code> para personalizar o nome exibido no Claude Code.<br>
+          Ex: <code>deepseek-chat|DeepSeek Chat</code>
+        </div>
+      </div>
+
+      <div class="ab-row" style="justify-content:flex-end;gap:8px;">
+        <button type="button" class="btn btn-ghost" id="btn-cancel">Cancelar</button>
+        <button type="submit" class="btn btn-primary" id="btn-save">
+          <span id="save-label">Salvar Provedor</span>
+        </button>
+      </div>
+
+    </form>
+
+  </section>
+
+</main>
+
+<!-- Toast container -->
+<div id="ab-toasts"></div>
+
+<script src="app.js"></script>
+</body>
+</html>
