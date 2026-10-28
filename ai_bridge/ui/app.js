@@ -81,7 +81,8 @@ function renderHome() {
   container.innerHTML = targets.map(t => {
     let dotClass = 'ab-target-card__dot';
     let statusLabel = '';
-    if (t.connected) { dotClass += ' ab-target-card__dot--connected'; statusLabel = 'Conectado'; }
+    if (t.connected && t.id === 'claude_desktop') { dotClass += ' ab-target-card__dot--available'; statusLabel = 'Configurado · reinicie o app'; }
+    else if (t.connected) { dotClass += ' ab-target-card__dot--connected'; statusLabel = 'Conectado'; }
     else if (t.installed) { dotClass += ' ab-target-card__dot--available'; statusLabel = 'Instalado'; }
     else { dotClass += ' ab-target-card__dot--unavailable'; statusLabel = 'Não instalado'; }
 
@@ -136,6 +137,7 @@ function renderTarget(key) {
   const statusEl = document.getElementById('target-conn-status');
   if (statusEl) {
     if (!t.installed) statusEl.textContent = 'Não instalado neste sistema';
+    else if (t.connected && t.id === 'claude_desktop') statusEl.textContent = 'Configurado no AI Bridge. Feche e reabra o Claude Desktop para aplicar.';
     else if (t.connected) statusEl.textContent = 'Conectado via AI Bridge';
     else statusEl.textContent = 'Usando provedor original';
   }
@@ -461,3 +463,5 @@ if (document.readyState === 'loading') {
   window.addEventListener('pywebviewready', boot, { once: true });
   setTimeout(() => { if (!window.pywebview) boot(); }, 300);
 }
+
+[executed on device: DZ23_PRADO (23cb9a21-fa9a-41c8-9057-7c779b224cee)]
