@@ -1,102 +1,202 @@
 # AI Bridge
 
-Proxy local que traduz a API do Claude (Anthropic) para o formato OpenAI, permitindo usar qualquer provedor compatível diretamente no **Claude Code**, **Claude Desktop** e **Codex**.
+> Proxy local que conecta Claude Code, Claude Desktop e Codex a qualquer modelo OpenAI-compatible — DeepSeek, GPT-4o, Gemini, Groq, Mistral e mais.
 
-<p align="center">
-  <img src="docs/screen-home.svg" width="360" alt="Tela inicial — escolha o destino"/>
-</p>
+<div align="center">
+
+![AI Bridge Home](docs/screen-home.svg)
+
+</div>
+
+---
+
+## O que é
+
+**AI Bridge** é um aplicativo de desktop que roda um proxy HTTP local traduzindo o protocolo Anthropic Messages API (usado por Claude Code, Claude Desktop e Codex) para o formato OpenAI-compatible. Com ele você usa qualquer provedor de LLM no lugar dos modelos Claude — sem modificar as ferramentas.
+
+### Como funciona
+
+```
+Claude Code / Claude Desktop / Codex
+          │  (Anthropic API)
+          ▼
+    AI Bridge Proxy
+     127.0.0.1:38771
+          │  (OpenAI API)
+          ▼
+  DeepSeek / GPT-4o / Gemini / Groq / …
+```
 
 ---
 
 ## Download
 
-> Baixe o executável direto — sem instalar Python, sem configurar ambiente.
+| Plataforma | Link |
+|------------|------|
+| **Windows** (.exe) | [⬇ AI-Bridge-Windows.exe](https://github.com/LMPrado-DZ23/ai-bridge/releases/latest/download/AI-Bridge-Windows.exe) |
+| **macOS** (.dmg) | [⬇ AI-Bridge-macOS.dmg](https://github.com/LMPrado-DZ23/ai-bridge/releases/latest/download/AI-Bridge-macOS.dmg) |
+| **Linux** (.AppImage) | [⬇ AI-Bridge-Linux.AppImage](https://github.com/LMPrado-DZ23/ai-bridge/releases/latest/download/AI-Bridge-Linux.AppImage) |
 
-| Plataforma | Download |
-|:---:|:---:|
-| **Windows** | [⬇ AI-Bridge-Windows.exe](https://github.com/LMPrado-DZ23/ai-bridge/releases/latest/download/AI-Bridge-Windows.exe) |
-| **Linux** | [⬇ AI-Bridge-Linux](https://github.com/LMPrado-DZ23/ai-bridge/releases/latest/download/AI-Bridge-Linux) |
-| **macOS** | [⬇ AI-Bridge-macOS](https://github.com/LMPrado-DZ23/ai-bridge/releases/latest/download/AI-Bridge-macOS) |
-
-Os binários são gerados automaticamente a cada push no branch `main` via GitHub Actions.
+Ou veja todas as versões na [página de releases](https://github.com/LMPrado-DZ23/ai-bridge/releases).
 
 ---
 
-## Como funciona
+## Interface
 
-```
-Claude Code / Claude Desktop / Codex
-         ↓  (Anthropic Messages API)
-      AI Bridge  ←→  Provedor OpenAI-compatible
-                      (DeepSeek, Groq, OpenRouter…)
-```
+<table>
+<tr>
+<td align="center" width="33%">
 
-O AI Bridge sobe um proxy HTTP local. Você aponta o cliente para `http://localhost:<porta>` e ele traduz as chamadas automaticamente — streaming, ferramentas e tudo mais.
+**Destinos**
+
+![Home](docs/screen-home.svg)
+
+Conecte Claude Code, Claude Desktop ou Codex ao proxy
+
+</td>
+<td align="center" width="33%">
+
+**Provedores**
+
+![Providers](docs/screen-providers.svg)
+
+Gerencie múltiplos provedores e seus modelos
+
+</td>
+<td align="center" width="33%">
+
+**Adicionar Provedor**
+
+![Add Provider](docs/screen-add.svg)
+
+Cadastre qualquer API OpenAI-compatible com presets
+
+</td>
+</tr>
+</table>
 
 ---
 
-## Capturas de tela
+## Provedores suportados
 
-<p align="center">
-  <img src="docs/screen-home.svg" width="340" alt="Tela inicial"/>
-  &nbsp;&nbsp;
-  <img src="docs/screen-target.svg" width="340" alt="Detalhe do destino"/>
-</p>
-<p align="center">
-  <img src="docs/screen-providers.svg" width="340" alt="Lista de provedores"/>
-</p>
+| Provedor | Endpoint padrão | Modelos incluídos |
+|----------|-----------------|-------------------|
+| **DeepSeek** | `api.deepseek.com/v1` | DeepSeek Chat, Reasoner |
+| **OpenAI** | `api.openai.com/v1` | GPT-4o, GPT-4o Mini, o1, o3 Mini |
+| **Groq** | `api.groq.com/openai/v1` | Llama 3.3 70B, Llama 3.1 8B, Gemma 2 9B |
+| **Gemini** | `generativelanguage.googleapis.com/v1beta/openai` | Gemini 2.0 Flash, 2.5 Pro, 2.5 Flash |
+| **Mistral** | `api.mistral.ai/v1` | Mistral Large, Small, Codestral |
+| **OpenRouter** | `openrouter.ai/api/v1` | GPT-4o, Claude Opus 4.5 (via OpenRouter) |
+| **Together** | `api.together.xyz/v1` | Llama 3.3 70B Turbo, Qwen 2.5 Coder 32B |
+| **Ollama** | `localhost:11434/v1` | Llama 3.2, Qwen 2.5 Coder, DeepSeek R1 |
+| **Claude Gateway** | `claude-ss.ia.br/v1` | Claude Sonnet 5, Opus 5.5, Fable 5.1, Haiku 4.5 |
+
+Qualquer provedor com API OpenAI-compatible pode ser adicionado manualmente.
 
 ---
 
 ## Destinos suportados
 
-| Destino | O que é configurado |
-|---|---|
-| **Claude Code** | Variável `ANTHROPIC_BASE_URL` + porta do proxy |
-| **Claude Desktop** | `claude_desktop_config.json` → `baseURL` |
-| **Codex** | `OPENAI_BASE_URL` → proxy do AI Bridge |
+| Destino | Protocolo | Como conecta |
+|---------|-----------|--------------|
+| **Claude Code** | Anthropic | Configura `ANTHROPIC_BASE_URL` + `ANTHROPIC_API_KEY` |
+| **Claude Desktop** | Anthropic | Injeta `claude_desktop_config.json` |
+| **Codex** | OpenAI | Configura variáveis de ambiente do Codex |
 
 ---
 
-## Provedores compatíveis
+## Segurança
 
-Qualquer API com endpoint compatível com OpenAI (`/v1/chat/completions`):
-
-- [DeepSeek](https://platform.deepseek.com) — `api.deepseek.com`
-- [Groq](https://console.groq.com) — `api.groq.com/openai/v1`
-- [OpenRouter](https://openrouter.ai) — `openrouter.ai/api/v1`
-- [Ollama](https://ollama.com) (local) — `localhost:11434/v1`
-- Qualquer outro endpoint OpenAI-compatible
+- **Chaves de API nunca gravadas em disco**: armazenadas no keyring do sistema operacional (Credential Manager no Windows, Keychain no macOS, Secret Service no Linux)
+- **Proxy exclusivamente local**: vinculado a `127.0.0.1` — nunca exposto à rede
+- **Frontend não recebe a chave**: o backend retorna apenas um booleano `has_key` para o UI; a chave real nunca trafega para o lado web
+- **Arquivos de configuração limpos**: `~/.ai-bridge/config.json` contém apenas metadados dos provedores, sem segredos
 
 ---
 
-## Compilar a partir do código
-
-**Pré-requisitos:** Python 3.12+, pip
+## Instalação a partir do código-fonte
 
 ```bash
+# Requisitos: Python 3.10+
 git clone https://github.com/LMPrado-DZ23/ai-bridge.git
 cd ai-bridge
+
 pip install -r requirements.txt
-python entry.py
+python main.py
 ```
 
-**Gerar executável:**
+### Dependências principais
 
-```bash
-python -m PyInstaller build.spec --noconfirm
-# Saída: dist/AI-Bridge.exe  (Windows)
-#        dist/AI-Bridge       (Linux / macOS)
+```
+flask          # Proxy HTTP
+httpx          # Chamadas aos provedores
+pywebview      # Janela desktop (Chromium embutido)
+keyring        # Armazenamento seguro de chaves
 ```
 
 ---
 
-## CI / CD
+## Testes
 
-O workflow `.github/workflows/build.yml` compila para as 3 plataformas em paralelo e publica automaticamente uma release `latest` com os binários prontos para download.
+```bash
+pip install pytest
+python -m pytest tests/ -v
+```
+
+A suíte cobre **24 casos de teste** para a camada de tradução Anthropic ↔ OpenAI:
+
+- Conversão de mensagens (sistema, usuário, assistente)
+- Passagem de parâmetros opcionais (temperatura, top_p, max_tokens, stream)
+- Tool use / function calling (ambas as direções)
+- Streaming SSE (texto e tool calls)
+- Mapeamento de stop_reason
+- Fallback para argumentos inválidos
+- Decodificação de bytes vs strings
+
+```
+tests/test_translate.py::TestToOpenaiRequest::test_simple_message PASSED
+tests/test_translate.py::TestToOpenaiRequest::test_system_string PASSED
+tests/test_translate.py::TestToOpenaiRequest::test_tool_choice_auto PASSED
+...
+24 passed in 0.12s
+```
+
+---
+
+## Estrutura do projeto
+
+```
+ai_bridge/
+├── __init__.py
+├── bridge.py       # Bridge pywebview — métodos JS↔Python
+├── claude_code.py  # Integração Claude Code (env vars)
+├── claude_desktop.py # Integração Claude Desktop (config JSON)
+├── codex.py        # Integração Codex
+├── config.py       # Configuração + keyring
+├── proxy.py        # Servidor Flask (proxy HTTP)
+└── translate.py    # Tradução Anthropic ↔ OpenAI
+
+ui/
+├── index.html      # Interface principal (Tailwind CSS)
+└── assets/
+
+tests/
+└── test_translate.py  # 24 testes unitários
+
+docs/
+├── screen-home.svg
+├── screen-providers.svg
+└── screen-add.svg
+```
 
 ---
 
 ## Licença
 
 MIT
+
+---
+
+<div align="center">
+<sub>Feito com Python + Flask + pywebview · Interface inspirada em Vercel / Linear / Stripe</sub>
+</div>
