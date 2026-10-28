@@ -55,5 +55,3 @@ def test_test_provider_reports_timeout(monkeypatch):
     result = Bridge().test_provider("https://example.com/v1", "test-key")
 
     assert result == {"ok": False, "error": "Timeout ao conectar."}
-
-[executed on device: DZ23_PRADO (23cb9a21-fa9a-41c8-9057-7c779b224cee)]
