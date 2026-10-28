@@ -1,89 +1,134 @@
-<svg width="520" height="640" viewBox="0 0 520 640" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <!-- Window background -->
+<svg width="540" height="660" viewBox="0 0 540 660" fill="none" xmlns="http://www.w3.org/2000/svg">
   <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="260" y2="640" gradientUnits="userSpaceOnUse">
-      <stop offset="0%" stop-color="#090b18"/>
-      <stop offset="60%" stop-color="#0d1128"/>
-      <stop offset="100%" stop-color="#0a0e1e"/>
+    <linearGradient id="bg-grad" x1="270" y1="0" x2="270" y2="660" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#0c0f1e"/>
+      <stop offset="100%" stop-color="#090b17"/>
     </linearGradient>
-    <linearGradient id="grad-active" x1="0" y1="0" x2="1" y2="0">
+    <linearGradient id="btn-grad" x1="0" y1="0" x2="1" y2="0" gradientUnits="objectBoundingBox">
       <stop offset="0%" stop-color="#6366f1"/>
-      <stop offset="100%" stop-color="#8b5cf6"/>
+      <stop offset="100%" stop-color="#818cf8"/>
     </linearGradient>
+    <linearGradient id="selected-border" x1="0" y1="0" x2="1" y2="1" gradientUnits="objectBoundingBox">
+      <stop offset="0%" stop-color="#6366f1"/>
+      <stop offset="100%" stop-color="#38bdf8"/>
+    </linearGradient>
+    <linearGradient id="icon-bg1" x1="0" y1="0" x2="1" y2="1" gradientUnits="objectBoundingBox">
+      <stop offset="0%" stop-color="#1e1b4b"/>
+      <stop offset="100%" stop-color="#111827"/>
+    </linearGradient>
+    <filter id="card-shadow" x="-5%" y="-5%" width="110%" height="110%">
+      <feDropShadow dx="0" dy="2" stdDeviation="6" flood-color="#000" flood-opacity="0.4"/>
+    </filter>
+    <!-- Selected card glow -->
+    <filter id="glow-selected">
+      <feGaussianBlur stdDeviation="3" result="blur"/>
+      <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+    </filter>
   </defs>
-  <rect width="520" height="640" rx="12" fill="url(#bg)"/>
+
+  <!-- Window background -->
+  <rect width="540" height="660" rx="14" fill="url(#bg-grad)"/>
+
+  <!-- Subtle noise texture overlay -->
+  <rect width="540" height="660" rx="14" fill="rgba(255,255,255,0.012)"/>
 
   <!-- Title bar -->
-  <rect width="520" height="44" rx="12" fill="rgba(255,255,255,0.03)"/>
-  <rect y="12" width="520" height="32" fill="rgba(255,255,255,0.03)"/>
-  <!-- Brand -->
-  <circle cx="24" cy="22" r="8" fill="#06b6d4" opacity="0.9"/>
-  <text x="36" y="27" font-family="system-ui,sans-serif" font-size="13" font-weight="600" fill="#e2e8f0">AI Bridge</text>
-  <!-- Win buttons -->
-  <circle cx="488" cy="22" r="7" fill="rgba(248,113,113,0.25)" stroke="rgba(248,113,113,0.4)" stroke-width="1"/>
-  <line x1="485" y1="19" x2="491" y2="25" stroke="#f87171" stroke-width="1.3" stroke-linecap="round"/>
-  <line x1="491" y1="19" x2="485" y2="25" stroke="#f87171" stroke-width="1.3" stroke-linecap="round"/>
-  <circle cx="468" cy="22" r="7" fill="rgba(255,255,255,0.06)" stroke="rgba(255,255,255,0.12)" stroke-width="1"/>
-  <line x1="463" y1="22" x2="473" y2="22" stroke="#8892a4" stroke-width="1.3" stroke-linecap="round"/>
+  <rect width="540" height="46" rx="14" fill="rgba(255,255,255,0.025)"/>
+  <rect y="26" width="540" height="20" fill="rgba(255,255,255,0.025)"/>
+
+  <!-- Diamond / brand icon -->
+  <g transform="translate(18, 11)">
+    <path d="M10 2L18 10L10 18L2 10Z" fill="none" stroke="#06b6d4" stroke-width="1.5"/>
+    <path d="M10 5L15 10L10 15L5 10Z" fill="#06b6d4" opacity="0.3"/>
+    <path d="M10 7L13 10L10 13L7 10Z" fill="#06b6d4" opacity="0.7"/>
+  </g>
+
+  <!-- Brand name -->
+  <text x="42" y="28" font-family="system-ui,-apple-system,sans-serif" font-size="13" font-weight="600" fill="#e2e8f0" letter-spacing="0.3">Invision</text>
+
+  <!-- Window controls (top-right) -->
+  <circle cx="510" cy="23" r="7" fill="rgba(239,68,68,0.2)" stroke="rgba(239,68,68,0.35)" stroke-width="1"/>
+  <line x1="507.5" y1="20.5" x2="512.5" y2="25.5" stroke="rgba(239,68,68,0.7)" stroke-width="1.3" stroke-linecap="round"/>
+  <line x1="512.5" y1="20.5" x2="507.5" y2="25.5" stroke="rgba(239,68,68,0.7)" stroke-width="1.3" stroke-linecap="round"/>
+  <circle cx="491" cy="23" r="7" fill="rgba(255,255,255,0.05)" stroke="rgba(255,255,255,0.1)" stroke-width="1"/>
+  <line x1="486.5" y1="23" x2="495.5" y2="23" stroke="rgba(255,255,255,0.4)" stroke-width="1.3" stroke-linecap="round"/>
 
   <!-- Divider -->
-  <line x1="0" y1="44" x2="520" y2="44" stroke="rgba(255,255,255,0.07)"/>
+  <line x1="0" y1="46" x2="540" y2="46" stroke="rgba(255,255,255,0.06)"/>
 
-  <!-- Home header -->
-  <text x="28" y="90" font-family="system-ui,sans-serif" font-size="18" font-weight="700" fill="#e2e8f0">Onde você quer usar</text>
-  <text x="28" y="112" font-family="system-ui,sans-serif" font-size="18" font-weight="700" fill="#e2e8f0">o AI Bridge?</text>
+  <!-- Step indicator -->
+  <text x="28" y="78" font-family="system-ui,sans-serif" font-size="10" font-weight="600" fill="#6366f1" letter-spacing="2">01  APLICATIVO INVISION</text>
 
-  <!-- Providers button -->
-  <rect x="336" y="75" width="156" height="32" rx="16" fill="rgba(255,255,255,0.06)" stroke="rgba(255,255,255,0.1)" stroke-width="1"/>
-  <text x="364" y="96" font-family="system-ui,sans-serif" font-size="12" fill="#8892a4">Provedores</text>
-  <rect x="430" y="81" width="18" height="18" rx="9" fill="rgba(99,102,241,0.8)"/>
-  <text x="434" y="94" font-family="system-ui,sans-serif" font-size="11" font-weight="700" fill="#fff">2</text>
+  <!-- Main heading -->
+  <text x="28" y="108" font-family="system-ui,-apple-system,sans-serif" font-size="22" font-weight="700" fill="#f1f5f9">Onde você quer usar</text>
+  <text x="28" y="134" font-family="system-ui,-apple-system,sans-serif" font-size="22" font-weight="700" fill="#f1f5f9">a Invision?</text>
 
-  <!-- Target card 1: Claude Code -->
-  <rect x="16" y="130" width="488" height="82" rx="10" fill="rgba(255,255,255,0.045)" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>
-  <!-- icon -->
-  <circle cx="58" cy="171" r="22" fill="#1a1a2e"/>
-  <circle cx="58" cy="149" r="3.5" fill="#e07b39"/>
-  <circle cx="68" cy="155" r="3.5" fill="#e07b39"/>
-  <circle cx="68" cy="167" r="3.5" fill="#e07b39"/>
-  <circle cx="58" cy="173" r="3.5" fill="#e07b39"/>
-  <circle cx="48" cy="167" r="3.5" fill="#e07b39"/>
-  <circle cx="48" cy="155" r="3.5" fill="#e07b39"/>
-  <!-- text -->
-  <text x="94" y="164" font-family="system-ui,sans-serif" font-size="15" font-weight="600" fill="#e2e8f0">Claude Code</text>
-  <text x="94" y="183" font-family="system-ui,sans-serif" font-size="12" fill="#8892a4">Terminal e IDEs</text>
-  <!-- status -->
-  <circle cx="447" cy="171" r="5" fill="#10b981"/>
-  <circle cx="447" cy="171" r="5" fill="#10b981" opacity="0.4">
-    <animate attributeName="r" values="5;9;5" dur="2s" repeatCount="indefinite"/>
-    <animate attributeName="opacity" values="0.4;0;0.4" dur="2s" repeatCount="indefinite"/>
-  </circle>
-  <text x="457" y="175" font-family="system-ui,sans-serif" font-size="11" fill="#10b981">Conectado</text>
-  <polyline points="498,167 504,171 498,175" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- ── CARD 1: Claude Desktop (unselected) ── -->
+  <rect x="18" y="162" width="504" height="88" rx="10" fill="rgba(255,255,255,0.04)" stroke="rgba(255,255,255,0.07)" stroke-width="1" filter="url(#card-shadow)"/>
 
-  <!-- Target card 2: Claude Desktop -->
-  <rect x="16" y="224" width="488" height="82" rx="10" fill="rgba(255,255,255,0.045)" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>
-  <circle cx="58" cy="265" r="22" fill="#1a1a2e"/>
-  <circle cx="58" cy="243" r="3.5" fill="#e07b39"/>
-  <circle cx="68" cy="249" r="3.5" fill="#e07b39"/>
-  <circle cx="68" cy="261" r="3.5" fill="#e07b39"/>
-  <circle cx="58" cy="267" r="3.5" fill="#e07b39"/>
-  <circle cx="48" cy="261" r="3.5" fill="#e07b39"/>
-  <circle cx="48" cy="249" r="3.5" fill="#e07b39"/>
-  <text x="94" y="258" font-family="system-ui,sans-serif" font-size="15" font-weight="600" fill="#e2e8f0">Claude Desktop</text>
-  <text x="94" y="277" font-family="system-ui,sans-serif" font-size="12" fill="#8892a4">Aplicativo desktop</text>
-  <circle cx="447" cy="265" r="5" fill="#3b82f6"/>
-  <text x="457" y="269" font-family="system-ui,sans-serif" font-size="11" fill="#3b82f6">Instalado</text>
-  <polyline points="498,261 504,265 498,269" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- Icon square -->
+  <rect x="32" y="178" width="52" height="52" rx="8" fill="url(#icon-bg1)"/>
+  <!-- Anthropic asterisk icon -->
+  <line x1="58" y1="192" x2="58" y2="216" stroke="#f97316" stroke-width="2.2" stroke-linecap="round"/>
+  <line x1="47.5" y1="197.5" x2="68.5" y2="210.5" stroke="#f97316" stroke-width="2.2" stroke-linecap="round"/>
+  <line x1="47.5" y1="210.5" x2="68.5" y2="197.5" stroke="#f97316" stroke-width="2.2" stroke-linecap="round"/>
 
-  <!-- Target card 3: Codex -->
-  <rect x="16" y="318" width="488" height="82" rx="10" fill="rgba(255,255,255,0.045)" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>
-  <circle cx="58" cy="359" r="22" fill="#1a1a2e"/>
-  <path d="M70 349 A14 14 0 1 0 70 369" stroke="#06b6d4" stroke-width="3" stroke-linecap="round" fill="none"/>
-  <line x1="46" y1="359" x2="62" y2="359" stroke="#06b6d4" stroke-width="2" stroke-linecap="round"/>
-  <text x="94" y="352" font-family="system-ui,sans-serif" font-size="15" font-weight="600" fill="#e2e8f0">Codex</text>
-  <text x="94" y="371" font-family="system-ui,sans-serif" font-size="12" fill="#8892a4">App e terminal OpenAI</text>
-  <circle cx="447" cy="359" r="5" fill="#3b4060"/>
-  <text x="457" y="363" font-family="system-ui,sans-serif" font-size="11" fill="#3a4560">Não instalado</text>
-  <polyline points="498,355 504,359 498,363" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- Card text -->
+  <text x="100" y="196" font-family="system-ui,sans-serif" font-size="14" font-weight="600" fill="#f1f5f9">Claude</text>
+  <text x="100" y="213" font-family="system-ui,sans-serif" font-size="11" fill="#64748b">Claude Desktop</text>
+  <!-- Status: not connected -->
+  <circle cx="101" cy="234" r="4" fill="#334155"/>
+  <text x="112" y="238" font-family="system-ui,sans-serif" font-size="11" fill="#475569">Não instalado</text>
+
+  <!-- ── CARD 2: Claude Code (SELECTED) ── -->
+  <!-- Gradient border via clip -->
+  <rect x="18" y="262" width="504" height="88" rx="10" fill="rgba(99,102,241,0.08)" stroke="rgba(99,102,241,0)" stroke-width="0"/>
+  <!-- Border via stroke with gradient simulation -->
+  <rect x="18.5" y="262.5" width="503" height="87" rx="9.5" fill="none" stroke="#6366f1" stroke-width="1.5" stroke-opacity="0.7"/>
+  <!-- Inner bright top line -->
+  <rect x="18.5" y="262.5" width="503" height="1" rx="0" fill="rgba(129,140,248,0.5)"/>
+
+  <!-- Icon square -->
+  <rect x="32" y="278" width="52" height="52" rx="8" fill="url(#icon-bg1)"/>
+  <!-- Anthropic asterisk -->
+  <line x1="58" y1="292" x2="58" y2="316" stroke="#f97316" stroke-width="2.2" stroke-linecap="round"/>
+  <line x1="47.5" y1="297.5" x2="68.5" y2="310.5" stroke="#f97316" stroke-width="2.2" stroke-linecap="round"/>
+  <line x1="47.5" y1="310.5" x2="68.5" y2="297.5" stroke="#f97316" stroke-width="2.2" stroke-linecap="round"/>
+
+  <!-- Selected badge -->
+  <circle cx="81" cy="276" r="7" fill="#6366f1"/>
+  <path d="M77.5 276L80 278.5L84.5 273.5" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- Card text -->
+  <text x="100" y="296" font-family="system-ui,sans-serif" font-size="14" font-weight="600" fill="#f1f5f9">Claude Code</text>
+  <text x="100" y="313" font-family="system-ui,sans-serif" font-size="11" fill="#64748b">Terminal e IDEs</text>
+  <!-- Status: connected -->
+  <circle cx="101" cy="334" r="4" fill="#06b6d4"/>
+  <text x="112" y="338" font-family="system-ui,sans-serif" font-size="11" fill="#94a3b8">Instalado</text>
+
+  <!-- ── CARD 3: Codex (unselected) ── -->
+  <rect x="18" y="362" width="504" height="88" rx="10" fill="rgba(255,255,255,0.04)" stroke="rgba(255,255,255,0.07)" stroke-width="1"/>
+
+  <!-- OpenAI / Codex icon square -->
+  <rect x="32" y="378" width="52" height="52" rx="8" fill="url(#icon-bg1)"/>
+  <!-- OpenAI logo simplified -->
+  <circle cx="58" cy="404" r="14" fill="none" stroke="rgba(255,255,255,0.7)" stroke-width="1.8"/>
+  <circle cx="58" cy="404" r="6" fill="rgba(255,255,255,0.7)"/>
+
+  <!-- Card text -->
+  <text x="100" y="396" font-family="system-ui,sans-serif" font-size="14" font-weight="600" fill="#f1f5f9">Codex</text>
+  <text x="100" y="413" font-family="system-ui,sans-serif" font-size="11" fill="#64748b">App, terminal e IDEs</text>
+  <!-- Status: connected via OpenAI -->
+  <circle cx="101" cy="434" r="4" fill="#06b6d4"/>
+  <text x="112" y="438" font-family="system-ui,sans-serif" font-size="11" fill="#94a3b8">Conectado · OpenAI (plano ChatGPT)</text>
+
+  <!-- ── Bottom: coming soon + footer ── -->
+  <text x="28" y="478" font-family="system-ui,sans-serif" font-size="11" fill="#475569">Em breve: Cursor · Antigravity · Hermes Agent</text>
+
+  <!-- Remove link -->
+  <text x="28" y="620" font-family="system-ui,sans-serif" font-size="11" fill="#475569" text-decoration="underline">Remover a Invision deste computador</text>
+
+  <!-- Continuar button -->
+  <rect x="376" y="600" width="136" height="38" rx="19" fill="url(#btn-grad)"/>
+  <text x="444" y="624" text-anchor="middle" font-family="system-ui,sans-serif" font-size="13" font-weight="600" fill="#fff">Continuar →</text>
 </svg>
