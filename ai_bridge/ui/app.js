@@ -4,44 +4,10 @@
 // ── Icons ─────────────────────────────────────────────────────────────────────
 
 const ICONS = {
-  claude_code: `<svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <circle cx="20" cy="20" r="20" fill="#1a1a2e"/>
-    <g transform="translate(20,20)">
-      <circle cx="0" cy="-8" r="2.2" fill="#e07b39"/>
-      <circle cx="6.93" cy="-4" r="2.2" fill="#e07b39"/>
-      <circle cx="6.93" cy="4" r="2.2" fill="#e07b39"/>
-      <circle cx="0" cy="8" r="2.2" fill="#e07b39"/>
-      <circle cx="-6.93" cy="4" r="2.2" fill="#e07b39"/>
-      <circle cx="-6.93" cy="-4" r="2.2" fill="#e07b39"/>
-    </g>
-  </svg>`,
-
-  claude_desktop: `<svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <circle cx="20" cy="20" r="20" fill="#1a1a2e"/>
-    <g transform="translate(20,20)">
-      <circle cx="0" cy="-8" r="2.2" fill="#e07b39"/>
-      <circle cx="6.93" cy="-4" r="2.2" fill="#e07b39"/>
-      <circle cx="6.93" cy="4" r="2.2" fill="#e07b39"/>
-      <circle cx="0" cy="8" r="2.2" fill="#e07b39"/>
-      <circle cx="-6.93" cy="4" r="2.2" fill="#e07b39"/>
-      <circle cx="-6.93" cy="-4" r="2.2" fill="#e07b39"/>
-    </g>
-    <rect x="12" y="30" width="16" height="2" rx="1" fill="#e07b39" opacity="0.6"/>
-  </svg>`,
-
-  codex: `<svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <circle cx="20" cy="20" r="20" fill="#1a1a2e"/>
-    <path d="M27 14 A9 9 0 1 0 27 26" stroke="#06b6d4" stroke-width="3" stroke-linecap="round" fill="none"/>
-    <line x1="14" y1="20" x2="26" y2="20" stroke="#06b6d4" stroke-width="2" stroke-linecap="round"/>
-  </svg>`,
-
-  bridge: `<svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <circle cx="20" cy="20" r="20" fill="#0f1729"/>
-    <circle cx="14" cy="20" r="3.5" fill="#06b6d4"/>
-    <circle cx="26" cy="20" r="3.5" fill="#06b6d4"/>
-    <rect x="17" y="18.5" width="6" height="3" rx="1.5" fill="#06b6d4"/>
-    <path d="M14 20 L14 14 M26 20 L26 14 M10 14 L30 14" stroke="#06b6d4" stroke-width="1.8" stroke-linecap="round"/>
-  </svg>`,
+  claude_code:    `<img src="anthropic.svg" class="w-10 h-10 object-contain" alt="Claude">`,
+  claude_desktop: `<img src="anthropic.svg" class="w-10 h-10 object-contain" alt="Claude">`,
+  codex:          `<img src="codex.png" class="w-10 h-10 object-contain brightness-0 invert" alt="Codex">`,
+  bridge:         `<img src="invision.webp" class="w-10 h-10 object-contain" alt="Invision">`,
 };
 
 // ── State ─────────────────────────────────────────────────────────────────────
@@ -217,16 +183,30 @@ function renderProviders() {
     btn.addEventListener('click', () => go('add', btn.dataset.edit));
   });
   container.querySelectorAll('[data-remove]').forEach(btn => {
-    btn.addEventListener('click', async () => {
+    btn.addEventListener('click', () => {
       const name = btn.dataset.remove;
-      const res = await api('remove_provider', name);
-      if (res && res.ok) {
-        toast(`Provedor "${name}" removido.`);
-        await refresh();
-        renderProviders();
-      } else {
-        toast(res?.error || 'Erro ao remover.', 'error');
-      }
+      const item = btn.closest('.ab-provider-item');
+      if (!item) return;
+      const existing = item.querySelector('.ab-confirm');
+      if (existing) { existing.remove(); return; }
+      const confirm = document.createElement('div');
+      confirm.className = 'ab-confirm';
+      confirm.innerHTML = `<span class="ab-confirm__msg">Remover "${escHtml(name)}"?</span>
+        <button class="ab-confirm__yes btn btn-ghost btn-sm ab-btn-danger" type="button">Remover</button>
+        <button class="ab-confirm__no btn btn-ghost btn-sm" type="button">Cancelar</button>`;
+      item.appendChild(confirm);
+      confirm.querySelector('.ab-confirm__no').addEventListener('click', () => confirm.remove());
+      confirm.querySelector('.ab-confirm__yes').addEventListener('click', async () => {
+        confirm.remove();
+        const res = await api('remove_provider', name);
+        if (res && res.ok) {
+          toast(`Provedor "${name}" removido.`);
+          await refresh();
+          renderProviders();
+        } else {
+          toast(res?.error || 'Erro ao remover.', 'error');
+        }
+      });
     });
   });
 }
@@ -237,7 +217,7 @@ async function renderAdd(editName) {
   const titleEl = document.getElementById('add-screen-title');
   const saveLabel = document.getElementById('save-label');
   if (titleEl) titleEl.textContent = editName ? 'Editar Provedor' : 'Novo Provedor';
-  if (saveLabel) saveLabel.textContent = editName ? 'Salvar alterações' : 'Salvar Provedor';
+  if (saveLabel) saveLabel.classList.add('hidden');
 
   // Reset form
   const form = document.getElementById('add-form');
@@ -282,7 +262,13 @@ async function renderAdd(editName) {
       const fModels = document.getElementById('f-models');
       if (fName) fName.value = detail.name || editName;
       if (fUrl) fUrl.value = detail.base_url || '';
-      if (fKey) fKey.value = detail.api_key || '';
+      if (fKey) {
+        fKey.value = '';
+        if (detail.has_key) {
+          fKey.placeholder = '••••••••';
+          if (saveLabel) saveLabel.classList.remove('hidden');
+        }
+      }
       if (fModels) fModels.value = (detail.models || []).map(m =>
         typeof m === 'string' ? m : `${m.id}|${m.name}`
       ).join('\n');
@@ -323,10 +309,10 @@ function escHtml(str) {
 function wireControls() {
   // Window controls
   document.getElementById('btn-minimize')?.addEventListener('click', () => {
-    window.pywebview?.api?.minimize?.() ?? window.pywebview?.minimize?.();
+    window.pywebview?.api?.minimize();
   });
   document.getElementById('btn-close')?.addEventListener('click', () => {
-    window.pywebview?.api?.close_to_tray?.() ?? window.pywebview?.close_to_tray?.();
+    window.pywebview?.api?.close_to_tray();
   });
 
   // Home: providers button
@@ -385,7 +371,8 @@ function wireControls() {
     if (!input) return;
     const isHidden = input.type === 'password';
     input.type = isHidden ? 'text' : 'password';
-    document.getElementById('btn-show-key').textContent = isHidden ? 'Ocultar' : 'Mostrar';
+    document.getElementById('icon-eye')?.classList.toggle('hidden', isHidden);
+    document.getElementById('icon-eye-off')?.classList.toggle('hidden', !isHidden);
   });
 
   // Test connection
@@ -394,9 +381,10 @@ function wireControls() {
     const key = document.getElementById('f-key')?.value?.trim();
     const btn = document.getElementById('btn-test');
     const resultEl = document.getElementById('test-result');
-    if (!url || !key) { toast('Preencha URL e chave antes de testar.', 'error'); return; }
+    if (!url) { toast('Preencha a URL antes de testar.', 'error'); return; }
+    if (!key && !_editingProvider) { toast('Preencha a chave antes de testar.', 'error'); return; }
     if (btn) { btn.textContent = '…'; btn.disabled = true; }
-    const res = await api('test_provider', url, key);
+    const res = await api('test_provider', url, key, _editingProvider || null);
     if (btn) { btn.textContent = 'Testar'; btn.disabled = false; }
     if (resultEl) {
       resultEl.hidden = false;
@@ -417,7 +405,9 @@ function wireControls() {
     const url = document.getElementById('f-url')?.value?.trim();
     const key = document.getElementById('f-key')?.value?.trim();
     const models = document.getElementById('f-models')?.value?.trim();
-    if (!name || !url || !key) return;
+
+    if (!name || !url) return;
+    if (!key && !_editingProvider) { toast('Preencha a chave API.', 'error'); return; }
 
     const saveBtn = document.getElementById('btn-save');
     if (saveBtn) saveBtn.disabled = true;

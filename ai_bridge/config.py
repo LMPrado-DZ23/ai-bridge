@@ -95,6 +95,11 @@ def get_providers() -> list:
     return [{**p, 'api_key': _get_key(p['name'])} for p in providers]
 
 
+def get_api_key(name: str) -> str:
+    """Return the stored API key for a provider, or '' if not found."""
+    return _get_key(name)
+
+
 def get_port() -> int:
     return load().get('port', DEFAULT_PORT)
 

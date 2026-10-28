@@ -203,11 +203,14 @@ class Bridge:
                         f"{m['id']}|{m['label']}" if m.get('label') and m['label'] != m['id'] else m['id']
                         for m in p.get('models', [])
                     )
+                    stored_key = cfg.get_api_key(name)
                     return {
                         'ok': True,
                         'name': p['name'],
                         'base_url': p['base_url'],
                         'models_raw': models_raw,
+                        'has_key': bool(stored_key),
+                        # api_key is intentionally NEVER returned to the frontend
                     }
             return {'ok': False, 'error': f'Provedor "{name}" não encontrado'}
         except Exception as e:
@@ -288,7 +291,12 @@ class Bridge:
         if codex_mod.is_connected():
             codex_mod.disconnect()
 
-    def test_provider(self, base_url: str, api_key: str) -> dict:
+    def test_provider(self, base_url: str, api_key: str, provider_name: str = None) -> dict:
+        """Test connectivity. If api_key is blank and provider_name is given, uses the stored key."""
+        if not api_key and provider_name:
+            api_key = cfg.get_api_key(provider_name) or ''
+        if not api_key:
+            return {'ok': False, 'error': 'Chave API não informada.'}
         try:
             url = base_url.rstrip('/') + '/models'
             resp = httpx.get(
