@@ -35,7 +35,8 @@
   <!-- ── Card 1: Claude Code ── -->
   <rect x="20" y="154" width="480" height="88" rx="10" fill="#0f1220" stroke="#1e2235" stroke-width="1"/>
   <rect x="36" y="170" width="40" height="40" rx="8" fill="#161a2e"/>
-  <text x="56" y="195" text-anchor="middle" dominant-baseline="middle" font-size="22">🤖</text>
+  <!-- Claude Code icon: terminal prompt -->
+  <text x="56" y="197" text-anchor="middle" dominant-baseline="middle" font-family="'Courier New',monospace" font-size="15" font-weight="700" fill="#f97316">&gt;_</text>
   <text x="90" y="192" font-family="'Segoe UI',system-ui,sans-serif" font-size="14" font-weight="600" fill="#f1f5f9">Claude Code</text>
   <text x="90" y="212" font-family="'Segoe UI',system-ui,sans-serif" font-size="11" fill="#64748b">Terminal e IDEs</text>
   <circle cx="393" cy="184" r="3.5" fill="#f59e0b"/>
@@ -47,7 +48,9 @@
   <rect x="20" y="254" width="480" height="88" rx="10" fill="#0f1220" stroke="#6366f1" stroke-opacity="0.35" stroke-width="1"/>
   <rect x="20" y="254" width="3" height="88" rx="1.5" fill="#6366f1"/>
   <rect x="36" y="270" width="40" height="40" rx="8" fill="#161a2e"/>
-  <text x="56" y="295" text-anchor="middle" dominant-baseline="middle" font-size="22">🔷</text>
+  <!-- Claude Desktop icon: Anthropic diamond -->
+  <polygon points="56,274 68,290 56,306 44,290" fill="#4f46e5" opacity="0.3"/>
+  <polygon points="56,278 65,290 56,302 47,290" fill="#6366f1"/>
   <text x="90" y="292" font-family="'Segoe UI',system-ui,sans-serif" font-size="14" font-weight="600" fill="#f1f5f9">Claude Desktop</text>
   <text x="90" y="312" font-family="'Segoe UI',system-ui,sans-serif" font-size="11" fill="#64748b">App para computador · :38771</text>
   <circle cx="393" cy="284" r="3.5" fill="#22c55e"/>
@@ -58,7 +61,8 @@
   <!-- ── Card 3: Codex ── -->
   <rect x="20" y="354" width="480" height="88" rx="10" fill="#0f1220" stroke="#1e2235" stroke-width="1"/>
   <rect x="36" y="370" width="40" height="40" rx="8" fill="#161a2e"/>
-  <text x="56" y="395" text-anchor="middle" dominant-baseline="middle" font-size="22">⚡</text>
+  <!-- Codex icon: lightning bolt -->
+  <polygon points="61,372 50,391 57,391 51,408 68,387 61,387" fill="#10b981"/>
   <text x="90" y="392" font-family="'Segoe UI',system-ui,sans-serif" font-size="14" font-weight="600" fill="#f1f5f9">Codex</text>
   <text x="90" y="412" font-family="'Segoe UI',system-ui,sans-serif" font-size="11" fill="#64748b">App, terminal e IDEs</text>
   <circle cx="393" cy="384" r="3.5" fill="#f59e0b"/>
