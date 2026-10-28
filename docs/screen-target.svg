@@ -1,0 +1,76 @@
+<svg width="520" height="640" viewBox="0 0 520 640" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="260" y2="640" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#090b18"/>
+      <stop offset="60%" stop-color="#0d1128"/>
+      <stop offset="100%" stop-color="#0a0e1e"/>
+    </linearGradient>
+    <linearGradient id="grad-pill" x1="0" y1="0" x2="100%" y2="0">
+      <stop offset="0%" stop-color="#6366f1"/>
+      <stop offset="100%" stop-color="#8b5cf6"/>
+    </linearGradient>
+    <linearGradient id="conn-line" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#6366f1"/>
+      <stop offset="100%" stop-color="#818cf8"/>
+    </linearGradient>
+  </defs>
+  <rect width="520" height="640" rx="12" fill="url(#bg)"/>
+
+  <!-- Title bar -->
+  <rect width="520" height="44" rx="12" fill="rgba(255,255,255,0.03)"/>
+  <rect y="12" width="520" height="32" fill="rgba(255,255,255,0.03)"/>
+  <circle cx="24" cy="22" r="8" fill="#06b6d4" opacity="0.9"/>
+  <text x="36" y="27" font-family="system-ui,sans-serif" font-size="13" font-weight="600" fill="#e2e8f0">AI Bridge</text>
+  <circle cx="488" cy="22" r="7" fill="rgba(248,113,113,0.25)" stroke="rgba(248,113,113,0.4)" stroke-width="1"/>
+  <line x1="485" y1="19" x2="491" y2="25" stroke="#f87171" stroke-width="1.3" stroke-linecap="round"/>
+  <line x1="491" y1="19" x2="485" y2="25" stroke="#f87171" stroke-width="1.3" stroke-linecap="round"/>
+  <circle cx="468" cy="22" r="7" fill="rgba(255,255,255,0.06)" stroke="rgba(255,255,255,0.12)" stroke-width="1"/>
+  <line x1="463" y1="22" x2="473" y2="22" stroke="#8892a4" stroke-width="1.3" stroke-linecap="round"/>
+  <line x1="0" y1="44" x2="520" y2="44" stroke="rgba(255,255,255,0.07)"/>
+
+  <!-- Back button -->
+  <polyline points="26,63 20,69 26,75" fill="none" stroke="#818cf8" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="34" y="74" font-family="system-ui,sans-serif" font-size="13" fill="#818cf8">Voltar</text>
+
+  <!-- Connection diagram area -->
+  <rect x="16" y="95" width="488" height="160" rx="12" fill="rgba(255,255,255,0.025)" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>
+
+  <!-- Left node: Claude Code -->
+  <circle cx="120" cy="165" r="36" fill="#1a1a2e" stroke="rgba(129,140,248,0.3)" stroke-width="1.5"/>
+  <circle cx="120" cy="147" r="4.5" fill="#e07b39"/>
+  <circle cx="133" cy="154" r="4.5" fill="#e07b39"/>
+  <circle cx="133" cy="169" r="4.5" fill="#e07b39"/>
+  <circle cx="120" cy="176" r="4.5" fill="#e07b39"/>
+  <circle cx="107" cy="169" r="4.5" fill="#e07b39"/>
+  <circle cx="107" cy="154" r="4.5" fill="#e07b39"/>
+  <text x="120" y="213" text-anchor="middle" font-family="system-ui,sans-serif" font-size="12" font-weight="500" fill="#8892a4">Claude Code</text>
+
+  <!-- Connection line (active) -->
+  <rect x="168" y="162" width="184" height="4" rx="2" fill="rgba(255,255,255,0.07)"/>
+  <rect x="168" y="162" width="184" height="4" rx="2" fill="url(#conn-line)"/>
+  <circle cx="260" cy="164" r="4" fill="#818cf8" opacity="0.8"/>
+
+  <!-- Right node: AI Bridge -->
+  <circle cx="400" cy="165" r="36" fill="#0f1729" stroke="rgba(6,182,212,0.3)" stroke-width="1.5"/>
+  <circle cx="385" cy="165" r="6" fill="#06b6d4"/>
+  <circle cx="415" cy="165" r="6" fill="#06b6d4"/>
+  <rect x="390" y="162" width="11" height="6" rx="3" fill="#06b6d4"/>
+  <path d="M385 165 L385 155 M415 165 L415 155 M378 155 L422 155" stroke="#06b6d4" stroke-width="2" stroke-linecap="round"/>
+  <text x="400" y="213" text-anchor="middle" font-family="system-ui,sans-serif" font-size="12" font-weight="500" fill="#8892a4">AI Bridge</text>
+
+  <!-- Status -->
+  <text x="260" y="242" text-anchor="middle" font-family="system-ui,sans-serif" font-size="13" fill="#10b981">Conectado via AI Bridge</text>
+
+  <!-- Description -->
+  <text x="28" y="278" font-family="system-ui,sans-serif" font-size="13" fill="#8892a4">Redireciona requisições do Claude Code para o</text>
+  <text x="28" y="296" font-family="system-ui,sans-serif" font-size="13" fill="#8892a4">provedor configurado.</text>
+
+  <!-- Pill toggle -->
+  <rect x="90" y="322" width="340" height="46" rx="23" fill="rgba(255,255,255,0.04)" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>
+  <!-- Active pill: AI Bridge -->
+  <rect x="94" y="326" width="162" height="38" rx="19" fill="url(#grad-pill)"/>
+  <filter id="glow"><feGaussianBlur stdDeviation="3" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+  <text x="175" y="350" text-anchor="middle" font-family="system-ui,sans-serif" font-size="14" font-weight="600" fill="#fff">AI Bridge</text>
+  <!-- Inactive pill -->
+  <text x="345" y="350" text-anchor="middle" font-family="system-ui,sans-serif" font-size="14" font-weight="500" fill="#3a4560">Provedor Original</text>
+</svg>
