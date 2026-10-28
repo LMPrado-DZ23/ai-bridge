@@ -72,5 +72,3 @@ def test_connect_refuses_to_overwrite_invalid_config(tmp_path, monkeypatch):
         raise AssertionError("invalid config should not be overwritten")
 
     assert config_file.read_text(encoding="utf-8") == "{not-json"
-
-[executed on device: DZ23_PRADO (23cb9a21-fa9a-41c8-9057-7c779b224cee)]
