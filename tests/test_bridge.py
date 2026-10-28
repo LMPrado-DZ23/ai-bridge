@@ -57,7 +57,7 @@ def test_test_provider_reports_timeout(monkeypatch):
     assert result == {"ok": False, "error": "Timeout ao conectar."}
 
 
-def test_activate_target_requires_restart_confirmation_before_mutating(monkeypatch):
+def test_activate_target_switches_in_one_action_and_restarts_running_client(monkeypatch):
     from ai_bridge import bridge as bridge_module
     app = bridge_module.Bridge()
     monkeypatch.setattr(bridge_module, "_target_state", lambda _target: {
@@ -65,14 +65,19 @@ def test_activate_target_requires_restart_confirmation_before_mutating(monkeypat
     })
     monkeypatch.setattr(bridge_module.launchers, "is_running", lambda _target: True)
     monkeypatch.setattr(app, "_preflight_active_provider", lambda: {"ok": True})
-    monkeypatch.setattr(app, "connect_target", lambda _target: (_ for _ in ()).throw(AssertionError("must not mutate before confirmation")))
+    monkeypatch.setattr(app, "connect_target", lambda target: {"ok": True, "port": 38771})
+    calls = []
+    monkeypatch.setattr(bridge_module.launchers, "launch_target", lambda target, restart=False: (calls.append((target, restart)) or {"launched": True, "restarted": True}))
 
     result = app.activate_target("claude_desktop", "bridge")
 
-    assert result["confirm_restart"] is True
+    assert result["ok"] is True
+    assert result["mode"] == "bridge"
+    assert calls == [("claude_desktop", True)]
+    assert "confirm_restart" not in result
 
 
-def test_activate_target_configures_and_launches_after_confirmation(monkeypatch):
+def test_activate_target_configures_and_restarts_in_one_action(monkeypatch):
     from ai_bridge import bridge as bridge_module
     app = bridge_module.Bridge()
     calls = []
@@ -86,7 +91,7 @@ def test_activate_target_configures_and_launches_after_confirmation(monkeypatch)
         calls.append((target, restart)) or {"launched": True, "restarted": True}
     ))
 
-    result = app.activate_target("claude_desktop", "bridge", confirm_restart=True)
+    result = app.activate_target("claude_desktop", "bridge")
 
     assert result["ok"] is True
     assert result["mode"] == "bridge"
@@ -129,3 +134,40 @@ def test_activate_bridge_blocks_when_selected_provider_fails_preflight(monkeypat
 
     assert result["ok"] is False
     assert "HTTP 401" in result["error"]
+
+
+def test_failed_restart_rolls_back_the_requested_mode(monkeypatch):
+    from ai_bridge import bridge as bridge_module
+    app = bridge_module.Bridge()
+    calls = []
+    monkeypatch.setattr(bridge_module, "_target_state", lambda _target: {
+        "id": "codex", "installed": True, "connected": True, "port": 38771
+    })
+    monkeypatch.setattr(bridge_module.launchers, "is_running", lambda _target: True)
+    monkeypatch.setattr(app, "disconnect_target", lambda target: calls.append(("disconnect", target)) or {"ok": True})
+    monkeypatch.setattr(app, "connect_target", lambda target: calls.append(("connect", target)) or {"ok": True, "port": 38771})
+    monkeypatch.setattr(bridge_module.launchers, "launch_target", lambda *args, **kwargs: (_ for _ in ()).throw(RuntimeError("app did not restart")))
+
+    result = app.activate_target("codex", "original")
+
+    assert result["ok"] is False
+    assert "configuração anterior foi restaurada" in result["error"]
+    assert calls == [("disconnect", "codex"), ("connect", "codex")]
+
+
+def test_clicking_original_mode_again_restarts_stale_claude_window(monkeypatch):
+    from ai_bridge import bridge as bridge_module
+    app = bridge_module.Bridge()
+    calls = []
+    monkeypatch.setattr(bridge_module, "_target_state", lambda _target: {
+        "id": "claude_desktop", "installed": True, "connected": False, "mode": "original"
+    })
+    monkeypatch.setattr(bridge_module.launchers, "is_running", lambda _target: True)
+    monkeypatch.setattr(bridge_module.launchers, "launch_target", lambda target, restart=False: (
+        calls.append((target, restart)) or {"launched": True, "restarted": True}
+    ))
+
+    result = app.activate_target("claude_desktop", "original")
+
+    assert result["ok"] is True
+    assert calls == [("claude_desktop", True)]

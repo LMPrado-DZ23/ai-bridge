@@ -89,34 +89,82 @@ def _launch_codex_desktop():
     raise RuntimeError("A abertura automática do Codex Desktop não é suportada neste sistema.")
 
 
+def _wait_for_desktop_main_process(target_id: str, timeout: int = 12):
+    """Do not report a successful launch until the real desktop process exists."""
+    if sys.platform != "win32":
+        return
+    if target_id == "claude_desktop":
+        process_name = "Claude.exe"
+        path_pattern = r"*\WindowsApps\Claude_*\app\Claude.exe"
+        app_name = "Claude Desktop"
+    elif target_id == "codex":
+        process_name = "ChatGPT.exe"
+        path_pattern = r"*\WindowsApps\OpenAI.Codex_*\app\ChatGPT.exe"
+        app_name = "Codex Desktop"
+    else:
+        return
+
+    script = f"""
+$deadline = (Get-Date).AddSeconds({int(timeout)})
+do {{
+  $app = Get-Process -Name '{process_name.removesuffix(".exe")}' -ErrorAction SilentlyContinue |
+    Where-Object {{ $_.Path -like '{path_pattern}' -and $_.MainWindowHandle -ne 0 -and $_.MainWindowTitle }}
+  if ($app) {{ exit 0 }}
+  Start-Sleep -Milliseconds 250
+}} while ((Get-Date) -lt $deadline)
+exit 24
+"""
+    result = subprocess.run(
+        ["powershell.exe", "-NoProfile", "-NonInteractive", "-Command", script],
+        capture_output=True, text=True, timeout=timeout + 3, check=False,
+    )
+    if result.returncode != 0:
+        raise RuntimeError(f"{app_name} não iniciou corretamente após a troca de modo; a configuração não será considerada validada.")
+
+
 def _restart_codex_desktop():
     processes = _codex_desktop_processes()
     if not processes:
         _launch_codex_desktop()
+        _wait_for_desktop_main_process("codex")
         return {"launched": True, "restarted": False}
 
     script = r"""
 $apps = Get-Process -Name ChatGPT -ErrorAction SilentlyContinue |
   Where-Object { $_.Path -like '*\WindowsApps\OpenAI.Codex_*\app\ChatGPT.exe' -and $_.MainWindowHandle -ne 0 }
 foreach ($app in $apps) { [void]$app.CloseMainWindow() }
-$deadline = (Get-Date).AddSeconds(10)
+$deadline = (Get-Date).AddSeconds(6)
 do {
   Start-Sleep -Milliseconds 250
-  $remaining = Get-Process -Name ChatGPT -ErrorAction SilentlyContinue |
-    Where-Object { $_.Path -like '*\WindowsApps\OpenAI.Codex_*\app\ChatGPT.exe' -and $_.MainWindowHandle -ne 0 }
+  $remaining = Get-CimInstance Win32_Process -Filter "name='ChatGPT.exe'" -ErrorAction SilentlyContinue |
+    Where-Object { $_.ExecutablePath -like '*\WindowsApps\OpenAI.Codex_*\app\ChatGPT.exe' -and $_.CommandLine -notmatch '--type=' }
 } while ($remaining -and (Get-Date) -lt $deadline)
+if ($remaining) {
+  $visible = Get-Process -Name ChatGPT -ErrorAction SilentlyContinue |
+    Where-Object { $_.Path -like '*\WindowsApps\OpenAI.Codex_*\app\ChatGPT.exe' -and $_.MainWindowHandle -ne 0 }
+  if ($visible) { exit 23 }
+  foreach ($root in $remaining) { Stop-Process -Id $root.ProcessId -Force -ErrorAction SilentlyContinue }
+  $deadline = (Get-Date).AddSeconds(6)
+  do {
+    Start-Sleep -Milliseconds 250
+    $remaining = Get-CimInstance Win32_Process -Filter "name='ChatGPT.exe'" -ErrorAction SilentlyContinue |
+      Where-Object { $_.ExecutablePath -like '*\WindowsApps\OpenAI.Codex_*\app\ChatGPT.exe' -and $_.CommandLine -notmatch '--type=' }
+  } while ($remaining -and (Get-Date) -lt $deadline)
+}
 if ($remaining) { exit 23 }
+Start-Sleep -Milliseconds 750
 exit 0
 """
     result = subprocess.run(
         ["powershell.exe", "-NoProfile", "-NonInteractive", "-Command", script],
-        capture_output=True, text=True, timeout=13, check=False,
+        capture_output=True, text=True, timeout=18, check=False,
     )
     if result.returncode != 0:
         raise RuntimeError(
             "O Codex Desktop não fechou de forma segura. Salve o trabalho e feche o aplicativo manualmente; o AI Bridge não encerrou processos à força."
         )
     _launch_codex_desktop()
+    _wait_for_desktop_main_process("codex")
     return {"launched": True, "restarted": True}
 
 
@@ -124,30 +172,45 @@ def _restart_claude_desktop():
     processes = _claude_desktop_processes()
     if not processes:
         _launch_claude_desktop()
+        _wait_for_desktop_main_process("claude_desktop")
         return {"launched": True, "restarted": False}
 
     script = r"""
 $apps = Get-Process -Name Claude -ErrorAction SilentlyContinue |
   Where-Object { $_.Path -like '*\WindowsApps\Claude_*\app\Claude.exe' -and $_.MainWindowHandle -ne 0 }
 foreach ($app in $apps) { [void]$app.CloseMainWindow() }
-$deadline = (Get-Date).AddSeconds(10)
+$deadline = (Get-Date).AddSeconds(6)
 do {
   Start-Sleep -Milliseconds 250
-  $remaining = Get-Process -Name Claude -ErrorAction SilentlyContinue |
-    Where-Object { $_.Path -like '*\WindowsApps\Claude_*\app\Claude.exe' -and $_.MainWindowHandle -ne 0 }
+  $remaining = Get-CimInstance Win32_Process -Filter "name='Claude.exe'" -ErrorAction SilentlyContinue |
+    Where-Object { $_.ExecutablePath -like '*\WindowsApps\Claude_*\app\Claude.exe' -and $_.CommandLine -notmatch '--type=' }
 } while ($remaining -and (Get-Date) -lt $deadline)
+if ($remaining) {
+  $visible = Get-Process -Name Claude -ErrorAction SilentlyContinue |
+    Where-Object { $_.Path -like '*\WindowsApps\Claude_*\app\Claude.exe' -and $_.MainWindowHandle -ne 0 }
+  if ($visible) { exit 23 }
+  foreach ($root in $remaining) { Stop-Process -Id $root.ProcessId -Force -ErrorAction SilentlyContinue }
+  $deadline = (Get-Date).AddSeconds(6)
+  do {
+    Start-Sleep -Milliseconds 250
+    $remaining = Get-CimInstance Win32_Process -Filter "name='Claude.exe'" -ErrorAction SilentlyContinue |
+      Where-Object { $_.ExecutablePath -like '*\WindowsApps\Claude_*\app\Claude.exe' -and $_.CommandLine -notmatch '--type=' }
+  } while ($remaining -and (Get-Date) -lt $deadline)
+}
 if ($remaining) { exit 23 }
+Start-Sleep -Milliseconds 750
 exit 0
 """
     result = subprocess.run(
         ["powershell.exe", "-NoProfile", "-NonInteractive", "-Command", script],
-        capture_output=True, text=True, timeout=13, check=False,
+        capture_output=True, text=True, timeout=18, check=False,
     )
     if result.returncode != 0:
         raise RuntimeError(
             "O Claude Desktop está aberto e não fechou de forma segura. Salve o trabalho e feche o Claude Desktop; depois clique novamente. O AI Bridge não encerrou processos à força."
         )
     _launch_claude_desktop()
+    _wait_for_desktop_main_process("claude_desktop")
     return {"launched": True, "restarted": True}
 
 
@@ -191,11 +254,13 @@ def launch_target(target_id: str, restart: bool = False) -> dict:
         if restart:
             return _restart_claude_desktop()
         _launch_claude_desktop()
+        _wait_for_desktop_main_process("claude_desktop")
         return {"launched": True, "restarted": False}
     if target_id == "codex":
         if restart:
             return _restart_codex_desktop()
         _launch_codex_desktop()
+        _wait_for_desktop_main_process("codex")
         return {"launched": True, "restarted": False}
     if target_id == "claude_code":
         return _launch_cli("claude", "Claude Code via AI Bridge")

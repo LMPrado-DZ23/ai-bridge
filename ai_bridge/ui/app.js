@@ -81,7 +81,7 @@ function renderHome() {
   container.innerHTML = targets.map(t => {
     let dotClass = 'ab-target-card__dot';
     let statusLabel = '';
-    if (t.connected && t.id === 'claude_desktop') { dotClass += ' ab-target-card__dot--available'; statusLabel = 'Configurado · reinicie o app'; }
+    if (t.connected && t.id === 'claude_desktop') { dotClass += ' ab-target-card__dot--available'; statusLabel = 'Conectado via AI Bridge'; }
     else if (t.connected) { dotClass += ' ab-target-card__dot--connected'; statusLabel = 'Conectado'; }
     else if (t.installed) { dotClass += ' ab-target-card__dot--available'; statusLabel = 'Instalado'; }
     else { dotClass += ' ab-target-card__dot--unavailable'; statusLabel = 'Não instalado'; }
@@ -355,27 +355,39 @@ function wireControls() {
   document.getElementById('btn-cancel')?.addEventListener('click', () =>
     go('providers'));
 
-  // Mode selector: configure, open and (when necessary) safely restart the client.
-  async function activateClientMode(mode, confirmRestart = false) {
-    if (!_currentTarget) return;
+  // One-click mode switch. The backend performs a graceful restart when the
+  // desktop client must reload its configuration; no second confirmation dialog.
+  let _modeSwitchPending = false;
+  async function activateClientMode(mode) {
+    if (!_currentTarget || _modeSwitchPending) return;
     if (mode === 'bridge' && (!_state.providers || !_state.providers.length)) {
       toast('Adicione e salve um provedor antes de usar o AI Bridge.', 'error');
       return;
     }
-    const res = await api('activate_target', _currentTarget, mode, confirmRestart);
-    if (res?.confirm_restart) {
-      const accepted = window.confirm(
-        'Para aplicar esta troca, o Claude Desktop precisa reiniciar. Salve qualquer trabalho aberto antes de continuar. Deseja reiniciar agora?'
-      );
-      if (!accepted) return;
-      return activateClientMode(mode, true);
-    }
-    if (res?.ok) {
-      toast(res.message || (mode === 'bridge' ? 'Modo AI Bridge aplicado.' : 'Modo original restaurado.'), 'success');
+    _modeSwitchPending = true;
+    const bridgeButton = document.getElementById('pill-bridge');
+    const originalButton = document.getElementById('pill-original');
+    if (bridgeButton) bridgeButton.disabled = true;
+    if (originalButton) originalButton.disabled = true;
+    try {
+      const res = await api('activate_target', _currentTarget, mode);
+      if (res?.ok) {
+        toast(res.message || (mode === 'bridge' ? 'Modo AI Bridge aplicado.' : 'Modo original restaurado.'), 'success');
+        await refresh();
+        renderTarget(_currentTarget);
+      } else {
+        toast(res?.error || 'Não foi possível alternar o modo.', 'error');
+        await refresh();
+        renderTarget(_currentTarget);
+      }
+    } catch (error) {
+      toast('Falha ao alternar o modo: ' + (error?.message || error), 'error');
       await refresh();
       renderTarget(_currentTarget);
-    } else {
-      toast(res?.error || 'Não foi possível alternar o modo.', 'error');
+    } finally {
+      _modeSwitchPending = false;
+      if (bridgeButton) bridgeButton.disabled = false;
+      if (originalButton) originalButton.disabled = false;
     }
   }
 

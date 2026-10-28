@@ -418,7 +418,7 @@ class Bridge:
             return {'ok': False, 'error': f"O provedor {provider.get('name', 'selecionado')} não passou no teste: {result.get('error', 'falha de conexão')}"}
         return {'ok': True}
 
-    def activate_target(self, target_id: str, mode: str, confirm_restart: bool = False) -> dict:
+    def activate_target(self, target_id: str, mode: str) -> dict:
         """Switch client mode, apply supported configuration, and open the client."""
         try:
             if mode not in ('bridge', 'original'):
@@ -443,30 +443,40 @@ class Bridge:
 
             running = launchers.is_running(target_id)
             desktop_targets = ('claude_desktop', 'codex')
-            if target_id in desktop_targets and running and not already_in_mode and not confirm_restart:
-                app_name = 'Claude Desktop' if target_id == 'claude_desktop' else 'Codex Desktop'
-                return {
-                    'ok': False,
-                    'confirm_restart': True,
-                    'error': f'{app_name} precisa reiniciar para aplicar a troca de modo. Salve o trabalho aberto antes de continuar.',
-                }
+            # Clicking "Provedor padrão" again is also a recovery action for a
+            # client whose process is alive but whose window is blank/stale.
+            needs_restart = target_id in desktop_targets and running and (
+                not already_in_mode or mode == 'original'
+            )
 
             if not already_in_mode:
                 result = self.connect_target(target_id) if mode == 'bridge' else self.disconnect_target(target_id)
                 if not result.get('ok'):
                     return result
 
-            launch_result = launchers.launch_target(
-                target_id,
-                restart=(target_id in desktop_targets and running and not already_in_mode),
-            )
+            # A mode switch is a single action. Restart gracefully when required;
+            # never ask a second confirmation after the user has clicked the mode.
+            try:
+                launch_result = launchers.launch_target(target_id, restart=needs_restart)
+            except Exception as launch_error:
+                if not already_in_mode:
+                    rollback_mode = 'original' if mode == 'bridge' else 'bridge'
+                    rollback = self.disconnect_target(target_id) if rollback_mode == 'original' else self.connect_target(target_id)
+                    if rollback.get('ok'):
+                        return {'ok': False, 'error': f'Não foi possível reiniciar o aplicativo; a configuração anterior foi restaurada. Detalhe: {launch_error}'}
+                    return {'ok': False, 'error': f'Falha ao reiniciar ({launch_error}) e ao restaurar o modo anterior ({rollback.get("error", "erro desconhecido")}). Verifique a configuração antes de continuar.'}
+                return {'ok': False, 'error': f'Não foi possível reiniciar o aplicativo: {launch_error}'}
+            action = 'Modo AI Bridge aplicado.' if mode == 'bridge' else 'Modo original restaurado.'
+            if needs_restart and launch_result.get('restarted'):
+                action += ' Aplicativo reiniciado para aplicar a troca.'
+            elif needs_restart and not launch_result.get('restarted'):
+                action += ' Configuração salva; o aplicativo foi aberto novamente.'
             return {
                 'ok': True,
                 'mode': mode,
                 'launched': launch_result.get('launched', True),
                 'restarted': launch_result.get('restarted', False),
-                'message': ('Modo AI Bridge aplicado.' if mode == 'bridge' else 'Modo original restaurado.')
-                           + ' O aplicativo foi aberto; confirme a primeira chamada antes de considerar a conexão validada.',
+                'message': action + ' Confirme a primeira chamada antes de considerar a conexão validada.',
             }
         except Exception as e:
             return {'ok': False, 'error': str(e)}

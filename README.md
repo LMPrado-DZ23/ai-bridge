@@ -100,8 +100,8 @@ Qualquer provedor com API OpenAI-compatible pode ser adicionado manualmente.
 | Destino | Protocolo | Como conecta |
 |---------|-----------|--------------|
 | **Claude Code** | Anthropic | Configura `ANTHROPIC_BASE_URL` + `ANTHROPIC_API_KEY` |
-| **Claude Desktop** | Gateway de inferência 3P | Mantém um perfil reversível em `%LOCALAPPDATA%\\Claude-3p\\configLibrary`; o aplicativo precisa ser reaberto para carregar o seletor atualizado |
-| **Codex Desktop** | OpenAI Responses API | Configura um provedor local AI Bridge e um catálogo JSON absoluto em `%USERPROFILE%\\.codex`; o aplicativo precisa ser reaberto para carregar novos modelos |
+| **Claude Desktop** | Gateway de inferência 3P | Mantém um perfil reversível em `%LOCALAPPDATA%\\Claude-3p\\configLibrary`; troca de modo em um clique com reinício controlado e validação da janela |
+| **Codex Desktop** | OpenAI Responses API | Configura um provedor local AI Bridge e catálogo JSON absoluto; alterna entre AI Bridge e Invision/provedor original em um clique |
 
 ---
 
@@ -143,7 +143,7 @@ pip install pytest
 python -m pytest tests/ -v
 ```
 
-A suíte contém **78 testes automatizados** cobrindo:
+A suíte contém **86 testes automatizados** cobrindo:
 
 - Tradução Anthropic Messages ↔ OpenAI Chat Completions e Responses API
 - Streaming SSE e tool/function calling
@@ -152,7 +152,7 @@ A suíte contém **78 testes automatizados** cobrindo:
 - Conexão/desconexão reversível, preservação do provedor Invision e configuração TOML
 - Restauração segura de configurações e detecção de instalação dos aplicativos
 
-Validação local mais recente: `78 passed`; `compileall` e `git diff --check` também concluídos sem erros.
+Validação local mais recente: `86 passed`; `compileall` e `git diff --check` também concluídos sem erros.
 
 ---
 
