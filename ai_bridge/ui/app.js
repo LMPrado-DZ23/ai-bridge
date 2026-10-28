@@ -4,10 +4,10 @@
 // ── Icons ─────────────────────────────────────────────────────────────────────
 
 const ICONS = {
-  claude_code:    `<img src="assets/brands/claude-code.png" class="w-10 h-10 object-contain" alt="Claude Code">`,
-  claude_desktop: `<img src="assets/brands/claude-code.png" class="w-10 h-10 object-contain" alt="Claude Desktop">`,
-  codex:          `<img src="assets/brands/codex.png" class="w-10 h-10 object-contain" alt="Codex">`,
-  bridge:         `<img src="assets/brands/ia-bridge.jpg" class="w-10 h-10 object-contain rounded-lg" alt="AI Bridge">`,
+  claude_code:    `<img src="assets/icons/claude-mark.png" class="ab-brand-mark ab-brand-mark--claude" alt="Claude Code">`,
+  claude_desktop: `<img src="assets/icons/claude-mark.png" class="ab-brand-mark ab-brand-mark--claude" alt="Claude Desktop">`,
+  codex:          `<img src="assets/icons/codex-mark.png" class="ab-brand-mark ab-brand-mark--codex" alt="Codex">`,
+  bridge:         `<img src="assets/icons/bridge-mark.svg" class="ab-brand-mark ab-brand-mark--bridge" alt="AI Bridge">`,
 };
 
 // ── State ─────────────────────────────────────────────────────────────────────
