@@ -71,38 +71,43 @@ def _write_catalog_file():
 
     models = []
     for picker_model in cfg.all_picker_models():
-            model_id = picker_model["value"]
-            label = picker_model["label"]
-            provider_name = model_id.split("/", 1)[0]
-            models.append({
-                "slug": model_id,
-                "display_name": label,
-                "description": f"{label} via AI Bridge ({provider_name}).",
-                "default_reasoning_level": "medium",
-                "supported_reasoning_levels": [
-                    {"effort": "low", "description": "Respostas mais rápidas."},
-                    {"effort": "medium", "description": "Equilíbrio entre velocidade e profundidade."},
-                    {"effort": "high", "description": "Maior profundidade para tarefas complexas."},
-                ],
-                "shell_type": "shell_command",
-                "visibility": "list",
-                "supported_in_api": True,
-                "priority": len(models) + 1,
-                "additional_speed_tiers": [],
-                "service_tiers": [],
-                "default_service_tier": None,
-                "availability_nux": None,
-                "upgrade": None,
-                "support_verbosity": False,
-                "default_verbosity": None,
-                "apply_patch_tool_type": "freeform",
-                "web_search_tool_type": "text",
-                "truncation_policy": {"mode": "tokens", "limit": 10000},
-                "effective_context_window_percent": 95,
-                "experimental_supported_tools": [],
-                "input_modalities": ["text"],
-                "base_instructions": "Modelo externo conectado pelo AI Bridge. Siga as instruções do usuário.",
-            })
+        model_id = picker_model["value"]
+        label = picker_model["label"]
+        provider_name = model_id.split("/", 1)[0]
+        models.append({
+            "slug": model_id,
+            # Keep both spellings: Codex Desktop and its bundled CLI have
+            # used different serialized names for the same display field.
+            "displayName": label,
+            "display_name": label,
+            "provider": _BRIDGE_PROVIDER,
+            "hidden": False,
+            "description": f"{label} via AI Bridge ({provider_name}).",
+            "default_reasoning_level": "medium",
+            "supported_reasoning_levels": [
+                {"effort": "low", "description": "Respostas mais rápidas."},
+                {"effort": "medium", "description": "Equilíbrio entre velocidade e profundidade."},
+                {"effort": "high", "description": "Maior profundidade para tarefas complexas."},
+            ],
+            "shell_type": "shell_command",
+            "visibility": "list",
+            "supported_in_api": True,
+            "priority": len(models) + 1,
+            "additional_speed_tiers": [],
+            "service_tiers": [],
+            "default_service_tier": None,
+            "availability_nux": None,
+            "upgrade": None,
+            "support_verbosity": False,
+            "default_verbosity": None,
+            "apply_patch_tool_type": "freeform",
+            "web_search_tool_type": "text",
+            "truncation_policy": {"mode": "tokens", "limit": 10000},
+            "effective_context_window_percent": 95,
+            "experimental_supported_tools": [],
+            "input_modalities": ["text"],
+            "base_instructions": "Modelo externo conectado pelo AI Bridge. Siga as instruções do usuário.",
+        })
     if not models:
         raise RuntimeError("O catálogo do Codex está vazio; adicione um provedor/modelo antes de conectar.")
     CODEX_DIR.mkdir(parents=True, exist_ok=True)

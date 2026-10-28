@@ -48,8 +48,8 @@ def test_claude_gateway_catalog_includes_models_from_multiple_providers(monkeypa
     models = config.claude_desktop_models()
 
     assert models == [
-        {"id": "claude-sonnet-5", "name": "DeepSeek V4 Pro · DeepSeek (AI Bridge)"},
-        {"id": "claude-sonnet-5-2", "name": "DeepSeek Flash · DeepSeek (AI Bridge)"},
-        {"id": "claude-sonnet-5-3", "name": "Claude Sonnet · OpenRouter (AI Bridge)"},
+        {"name": "claude-sonnet-5", "labelOverride": "DeepSeek V4 Pro · DeepSeek (AI Bridge)"},
+        {"name": "claude-sonnet-5-2", "labelOverride": "DeepSeek Flash · DeepSeek (AI Bridge)"},
+        {"name": "claude-sonnet-5-3", "labelOverride": "Claude Sonnet · OpenRouter (AI Bridge)"},
     ]
     assert config.get_model_id("claude-sonnet-5-3") == "anthropic/claude-sonnet"

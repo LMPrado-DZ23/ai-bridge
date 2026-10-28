@@ -6,6 +6,21 @@ import subprocess
 import sys
 
 
+def _run_hidden(command, **kwargs):
+    """Run helper commands without spawning a visible console on Windows."""
+    if sys.platform == "win32":
+        flags = getattr(subprocess, "CREATE_NO_WINDOW", 0)
+        if flags:
+            kwargs["creationflags"] = flags
+        startupinfo_type = getattr(subprocess, "STARTUPINFO", None)
+        if startupinfo_type is not None:
+            startupinfo = startupinfo_type()
+            startupinfo.dwFlags |= getattr(subprocess, "STARTF_USESHOWWINDOW", 1)
+            startupinfo.wShowWindow = 0
+            kwargs["startupinfo"] = startupinfo
+    return subprocess.run(command, **kwargs)
+
+
 def _claude_desktop_processes():
     if sys.platform != "win32":
         return []
@@ -16,7 +31,7 @@ $items = Get-CimInstance Win32_Process -Filter "name='Claude.exe'" -ErrorAction 
 $items | ConvertTo-Json -Compress
 """
     try:
-        result = subprocess.run(
+        result = _run_hidden(
             ["powershell.exe", "-NoProfile", "-NonInteractive", "-Command", script],
             capture_output=True, text=True, timeout=5, check=False,
         )
@@ -39,7 +54,7 @@ $items = Get-CimInstance Win32_Process -Filter "name='ChatGPT.exe'" -ErrorAction
 $items | ConvertTo-Json -Compress
 """
     try:
-        result = subprocess.run(
+        result = _run_hidden(
             ["powershell.exe", "-NoProfile", "-NonInteractive", "-Command", script],
             capture_output=True, text=True, timeout=5, check=False,
         )
@@ -66,10 +81,20 @@ def _launch_msix_app(app_id: str):
         raise RuntimeError("A abertura automática do aplicativo MSIX requer Windows.")
     # Using AppsFolder avoids relying on CLI PATH or a protocol handler that may
     # be missing. It starts the installed desktop app without touching its profile.
-    subprocess.Popen(
-        ["explorer.exe", f"shell:AppsFolder\\{app_id}"],
-        close_fds=True,
-    )
+    command = ["explorer.exe", f"shell:AppsFolder\\{app_id}"]
+    kwargs = {"close_fds": True}
+    # The normal desktop-app path must never create a visible console window.
+    # Keep this guarded so unit tests and non-Windows platforms can import it.
+    no_console = getattr(subprocess, "CREATE_NO_WINDOW", 0)
+    if no_console:
+        kwargs["creationflags"] = no_console
+    startupinfo_type = getattr(subprocess, "STARTUPINFO", None)
+    if startupinfo_type is not None:
+        startupinfo = startupinfo_type()
+        startupinfo.dwFlags |= getattr(subprocess, "STARTF_USESHOWWINDOW", 1)
+        startupinfo.wShowWindow = 0
+        kwargs["startupinfo"] = startupinfo
+    subprocess.Popen(command, **kwargs)
 
 
 def _launch_claude_desktop():
@@ -114,7 +139,7 @@ do {{
 }} while ((Get-Date) -lt $deadline)
 exit 24
 """
-    result = subprocess.run(
+    result = _run_hidden(
         ["powershell.exe", "-NoProfile", "-NonInteractive", "-Command", script],
         capture_output=True, text=True, timeout=timeout + 3, check=False,
     )
@@ -140,8 +165,9 @@ do {
     Where-Object { $_.ExecutablePath -like '*\WindowsApps\OpenAI.Codex_*\app\ChatGPT.exe' -and $_.CommandLine -notmatch '--type=' }
 } while ($remaining -and (Get-Date) -lt $deadline)
 if ($remaining) {
+  Add-Type -TypeDefinition 'using System; using System.Runtime.InteropServices; public class AiBridgeWindowState { [DllImport("user32.dll")] public static extern bool IsWindowVisible(IntPtr hWnd); }'
   $visible = Get-Process -Name ChatGPT -ErrorAction SilentlyContinue |
-    Where-Object { $_.Path -like '*\WindowsApps\OpenAI.Codex_*\app\ChatGPT.exe' -and $_.MainWindowHandle -ne 0 }
+    Where-Object { $_.Path -like '*\WindowsApps\OpenAI.Codex_*\app\ChatGPT.exe' -and $_.MainWindowHandle -ne 0 -and [AiBridgeWindowState]::IsWindowVisible($_.MainWindowHandle) }
   if ($visible) { exit 23 }
   foreach ($root in $remaining) { Stop-Process -Id $root.ProcessId -Force -ErrorAction SilentlyContinue }
   $deadline = (Get-Date).AddSeconds(6)
@@ -155,7 +181,7 @@ if ($remaining) { exit 23 }
 Start-Sleep -Milliseconds 750
 exit 0
 """
-    result = subprocess.run(
+    result = _run_hidden(
         ["powershell.exe", "-NoProfile", "-NonInteractive", "-Command", script],
         capture_output=True, text=True, timeout=18, check=False,
     )
@@ -186,8 +212,9 @@ do {
     Where-Object { $_.ExecutablePath -like '*\WindowsApps\Claude_*\app\Claude.exe' -and $_.CommandLine -notmatch '--type=' }
 } while ($remaining -and (Get-Date) -lt $deadline)
 if ($remaining) {
+  Add-Type -TypeDefinition 'using System; using System.Runtime.InteropServices; public class AiBridgeWindowState { [DllImport("user32.dll")] public static extern bool IsWindowVisible(IntPtr hWnd); }'
   $visible = Get-Process -Name Claude -ErrorAction SilentlyContinue |
-    Where-Object { $_.Path -like '*\WindowsApps\Claude_*\app\Claude.exe' -and $_.MainWindowHandle -ne 0 }
+    Where-Object { $_.Path -like '*\WindowsApps\Claude_*\app\Claude.exe' -and $_.MainWindowHandle -ne 0 -and [AiBridgeWindowState]::IsWindowVisible($_.MainWindowHandle) }
   if ($visible) { exit 23 }
   foreach ($root in $remaining) { Stop-Process -Id $root.ProcessId -Force -ErrorAction SilentlyContinue }
   $deadline = (Get-Date).AddSeconds(6)
@@ -201,7 +228,7 @@ if ($remaining) { exit 23 }
 Start-Sleep -Milliseconds 750
 exit 0
 """
-    result = subprocess.run(
+    result = _run_hidden(
         ["powershell.exe", "-NoProfile", "-NonInteractive", "-Command", script],
         capture_output=True, text=True, timeout=18, check=False,
     )

@@ -214,7 +214,7 @@ def claude_desktop_models() -> list:
     aliases = _claude_desktop_alias_map()
     labels = {model['value']: model['label'] for model in all_picker_models()}
     return [
-        {'id': alias, 'name': f"{labels[upstream]} (AI Bridge)"}
+        {'name': alias, 'labelOverride': f"{labels[upstream]} (AI Bridge)"}
         for alias, upstream in aliases.items()
         if alias != 'claude-opus-5-5'
     ]

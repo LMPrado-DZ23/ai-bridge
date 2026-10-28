@@ -64,14 +64,21 @@ def configure(port: int, models: list) -> dict:
     normalized = []
     seen = set()
     for model in models:
-        model_id = str(model.get("id") or "").strip()
-        name = str(model.get("name") or "").strip()
-        if not model_id or not name:
-            raise RuntimeError("O catálogo do Claude Desktop contém um modelo sem id ou nome.")
+        model_id = str(model.get("name") or model.get("id") or "").strip()
+        if not model_id:
+            raise RuntimeError("O catálogo do Claude Desktop contém um modelo sem identificador.")
         if model_id in seen:
             raise RuntimeError(f"O catálogo do Claude Desktop contém um ID duplicado: {model_id}")
         seen.add(model_id)
-        normalized.append({"id": model_id, "name": name})
+        # Claude Desktop expects name to be a Claude-compatible model route.
+        # labelOverride is the display-only label for non-Anthropic upstreams.
+        item = {"name": model_id}
+        label = str(model.get("labelOverride") or "").strip()
+        if label:
+            item["labelOverride"] = label
+        if model.get("supports1m") is True:
+            item["supports1m"] = True
+        normalized.append(item)
 
     _CONFIG_LIBRARY.mkdir(parents=True, exist_ok=True)
     meta_existed = _META_FILE.is_file()

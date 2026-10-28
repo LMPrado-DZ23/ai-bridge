@@ -58,8 +58,8 @@ def _prepare_gateway_test(tmp_path, monkeypatch, meta=None):
 
 def _models():
     return [
-        {"id": "claude-sonnet-5", "name": "DeepSeek Flash · DeepSeek (AI Bridge)"},
-        {"id": "claude-sonnet-5-2", "name": "DeepSeek V4 Pro · DeepSeek (AI Bridge)"},
+        {"name": "claude-sonnet-5", "labelOverride": "DeepSeek Flash · DeepSeek (AI Bridge)"},
+        {"name": "claude-sonnet-5-2", "labelOverride": "DeepSeek V4 Pro · DeepSeek (AI Bridge)"},
     ]
 
 
@@ -182,14 +182,14 @@ def test_claude_desktop_models_use_claude_compatible_ids_and_route_to_upstream(m
 
     models = config.claude_desktop_models()
 
-    assert models[0] == {"id": "claude-sonnet-5", "name": "DeepSeek V4 Pro · DeepSeek (AI Bridge)"}
-    assert models[1] == {"id": "claude-sonnet-5-2", "name": "DeepSeek Flash · DeepSeek (AI Bridge)"}
+    assert models[0] == {"name": "claude-sonnet-5", "labelOverride": "DeepSeek V4 Pro · DeepSeek (AI Bridge)"}
+    assert models[1] == {"name": "claude-sonnet-5-2", "labelOverride": "DeepSeek Flash · DeepSeek (AI Bridge)"}
     assert config.get_provider_for_model("claude-sonnet-5")["name"] == "DeepSeek"
     assert config.get_model_id("claude-sonnet-5") == "deepseek-v4-pro"
     assert config.get_model_id("claude-sonnet-5-2") == "deepseek-flash"
     # Compatibility for Claude Desktop's previously persisted Invision model.
     assert config.get_model_id("claude-opus-5-5") == "deepseek-v4-pro"
-    assert all(model["id"] != "claude-opus-5-5" for model in models)
+    assert all(model["name"] != "claude-opus-5-5" for model in models)
 
 
 def test_gateway_detection_rejects_applied_id_not_registered_in_entries(tmp_path, monkeypatch):

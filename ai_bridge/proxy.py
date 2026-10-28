@@ -145,7 +145,11 @@ def codex_models():
             label = model.get('label', model['id'])
             catalog.append({
                 'slug': model_id,
+                # Match Codex Desktop's local model_catalog_json schema.
+                'displayName': f"{label} · {provider['name']}",
                 'display_name': f"{label} · {provider['name']}",
+                'provider': 'ai_bridge',
+                'hidden': False,
                 'description': f"{label} via AI Bridge ({provider['name']}).",
                 'default_reasoning_level': 'medium',
                 'supported_reasoning_levels': [

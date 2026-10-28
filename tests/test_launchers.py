@@ -4,6 +4,27 @@ from unittest.mock import Mock
 from ai_bridge import launchers
 
 
+def test_run_hidden_suppresses_windows_console(monkeypatch):
+    class StartupInfo:
+        def __init__(self):
+            self.dwFlags = 0
+            self.wShowWindow = -1
+
+    run = Mock(return_value=Mock(returncode=0, stdout="", stderr=""))
+    monkeypatch.setattr(launchers.sys, "platform", "win32")
+    monkeypatch.setattr(launchers.subprocess, "run", run)
+    monkeypatch.setattr(launchers.subprocess, "CREATE_NO_WINDOW", 0x08000000, raising=False)
+    monkeypatch.setattr(launchers.subprocess, "STARTF_USESHOWWINDOW", 1, raising=False)
+    monkeypatch.setattr(launchers.subprocess, "STARTUPINFO", StartupInfo, raising=False)
+
+    launchers._run_hidden(["powershell.exe", "-Command", "exit 0"], capture_output=True)
+
+    kwargs = run.call_args.kwargs
+    assert kwargs["creationflags"] == 0x08000000
+    assert kwargs["startupinfo"].dwFlags & 1
+    assert kwargs["startupinfo"].wShowWindow == 0
+
+
 def test_launch_codex_uses_installed_desktop_app(monkeypatch):
     popen = Mock()
     monkeypatch.setattr(launchers.sys, "platform", "win32")
@@ -15,6 +36,12 @@ def test_launch_codex_uses_installed_desktop_app(monkeypatch):
     args = popen.call_args.args[0]
     assert args[0] == "explorer.exe"
     assert args[1] == r"shell:AppsFolder\OpenAI.Codex_2p2nqsd0c76g0!App"
+    kwargs = popen.call_args.kwargs
+    assert kwargs["close_fds"] is True
+    if getattr(launchers.subprocess, "CREATE_NO_WINDOW", 0):
+        assert kwargs["creationflags"] == launchers.subprocess.CREATE_NO_WINDOW
+    if "startupinfo" in kwargs:
+        assert kwargs["startupinfo"].wShowWindow == 0
 
 
 def test_launch_claude_desktop_uses_installed_msix_app(monkeypatch):

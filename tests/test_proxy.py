@@ -93,7 +93,10 @@ def test_codex_model_catalog_uses_provider_model_ids(client, monkeypatch):
     assert [model['slug'] for model in models] == [
         'DeepSeek/deepseek-flash', 'DeepSeek/deepseek-v4-pro'
     ]
+    assert models[0]['displayName'] == 'DeepSeek Flash · DeepSeek'
     assert models[0]['display_name'] == 'DeepSeek Flash · DeepSeek'
+    assert models[0]['provider'] == 'ai_bridge'
+    assert models[0]['hidden'] is False
     assert models[0]['supported_in_api'] is True
     assert models[0]['input_modalities'] == ['text']
 

@@ -40,7 +40,11 @@ wire_api = "responses"
     assert parsed['model_catalog_json'] == (codex_dir / 'ai-bridge-models.json').resolve().as_posix()
     catalog = json.loads((codex_dir / 'ai-bridge-models.json').read_text(encoding='utf-8'))
     assert [model['slug'] for model in catalog['models']] == ['DeepSeek/deepseek-chat']
+    assert catalog['models'][0]['displayName'] == 'DeepSeek Chat · DeepSeek'
     assert catalog['models'][0]['display_name'] == 'DeepSeek Chat · DeepSeek'
+    assert catalog['models'][0]['provider'] == 'ai_bridge'
+    assert catalog['models'][0]['hidden'] is False
+    assert catalog['models'][0]['slug'] == 'DeepSeek/deepseek-chat'
     assert '_ai_bridge_port' not in parsed['model_providers']['ai_bridge']
     assert codex._read_port() == 38771
     assert codex.state().connected is True
@@ -137,8 +141,8 @@ def test_claude_desktop_model_list_uses_compatible_aliases_and_preserves_upstrea
     models = config.claude_desktop_models()
 
     assert models == [
-        {"id": "claude-sonnet-5", "name": "DeepSeek Flash · DeepSeek (AI Bridge)"},
-        {"id": "claude-sonnet-5-2", "name": "DeepSeek V4 Pro · DeepSeek (AI Bridge)"},
+        {"name": "claude-sonnet-5", "labelOverride": "DeepSeek Flash · DeepSeek (AI Bridge)"},
+        {"name": "claude-sonnet-5-2", "labelOverride": "DeepSeek V4 Pro · DeepSeek (AI Bridge)"},
     ]
     assert config.get_provider_for_model("claude-sonnet-5")["name"] == "DeepSeek"
     assert config.get_model_id("claude-sonnet-5") == "deepseek-flash"
