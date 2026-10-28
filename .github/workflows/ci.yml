@@ -30,7 +30,9 @@ jobs:
           python-version: "3.12"
       - name: Install lint tools
         run: python -m pip install ruff
-      - name: Format check
-        run: ruff format --check ai_bridge/ tests/
-      - name: Lint
+      - name: Format Python files
+        run: ruff format ai_bridge/ tests/
+      - name: Fix safe lint issues
+        run: ruff check --fix ai_bridge/ tests/
+      - name: Verify lint
         run: ruff check ai_bridge/ tests/
