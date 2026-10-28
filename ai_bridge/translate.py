@@ -158,7 +158,7 @@ def to_anthropic_response(oai: dict, model: str) -> dict:
     if text:
         content.append({'type': 'text', 'text': text})
 
-    for tc in message.get('tool_calls', []):
+    for tc in (message.get('tool_calls') or []):
         fn = tc.get('function', {})
         try:
             inp = json.loads(fn.get('arguments', '{}'))
