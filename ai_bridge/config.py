@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+import shutil
 from pathlib import Path
 from typing import Optional
 
@@ -87,16 +88,52 @@ def _migrate_legacy_keys(data: dict) -> bool:
     return migrated
 
 
+def _migrate_escaped_model_lines(data: dict) -> bool:
+    """Repair model lists pasted with literal \\n separators instead of actual newlines."""
+    changed = False
+    for provider in data.get('providers', []):
+        repaired = []
+        for model in provider.get('models', []):
+            model_id = str(model.get('id', ''))
+            label = str(model.get('label', model_id))
+            if r'\n' in model_id and label == model_id:
+                parts = [part.strip() for part in model_id.split(r'\n') if part.strip()]
+                if len(parts) > 1:
+                    repaired.extend({'id': part, 'label': part} for part in parts)
+                    changed = True
+                    continue
+            repaired.append(model)
+        provider['models'] = repaired
+    if changed:
+        selected = data.get('active_model', '')
+        for provider in data.get('providers', []):
+            prefix = provider.get('name', '') + '/'
+            if selected.startswith(prefix) and r'\n' in selected:
+                first = selected[len(prefix):].split(r'\n', 1)[0].strip()
+                data['active_model'] = prefix + first
+                break
+    return changed
+
+
 # ─── Public API ─────────────────────────────────────────────────────────────
 
 def get_providers() -> list:
     data = load()
     providers = data.get('providers', [])
 
-    if any('api_key' in p for p in providers):
-        if _migrate_legacy_keys(data):
-            save(data)
-            providers = data.get('providers', [])
+    if any('api_key' in p for p in providers) and _migrate_legacy_keys(data):
+        # Complete the existing keyring migration before creating any backup,
+        # so a backup never duplicates plaintext API credentials.
+        save(data)
+        providers = data.get('providers', [])
+
+    if _migrate_escaped_model_lines(data):
+        if CONFIG_FILE.is_file():
+            backup = CONFIG_FILE.with_name('config.json.ai-bridge-models-backup.json')
+            if not backup.exists():
+                shutil.copy2(CONFIG_FILE, backup)
+        save(data)
+        providers = data.get('providers', [])
 
     return [{**p, 'api_key': _get_key(p['name'])} for p in providers]
 
@@ -131,30 +168,61 @@ def remove_provider(name: str):
     save(data)
 
 
+def get_active_model() -> str:
+    """Return the selected model value, falling back safely to the first model."""
+    models = all_picker_models()
+    if not models:
+        return ''
+    selected = load().get('active_model')
+    if selected and any(model['value'] == selected for model in models):
+        return selected
+    return models[0]['value']
+
+
+def set_active_model(value: str):
+    if not any(model['value'] == value for model in all_picker_models()):
+        raise ValueError('O modelo selecionado não existe nos provedores salvos.')
+    data = load()
+    data['active_model'] = value
+    save(data)
+
+
+def claude_desktop_models() -> list:
+    """Expose the actual configured upstream model IDs to Claude Desktop."""
+    result = []
+    for provider in get_providers():
+        for model in provider.get('models', []):
+            result.append({
+                'name': f"{provider['name']}/{model['id']}",
+                'labelOverride': f"{model.get('label', model['id'])} · {provider['name']}",
+            })
+    return result
+
+
 def get_provider_for_model(model: str) -> Optional[dict]:
-    for p in get_providers():
-        for m in p.get('models', []):
-            label = m.get('label', m['id'])
+    for provider in get_providers():
+        for configured_model in provider.get('models', []):
+            label = configured_model.get('label', configured_model['id'])
             if model in (
-                f"{p['name']}/{m['id']}",   # Claude Code: Provider/id
-                m['id'],                      # plain id
-                f"{label} · {p['name']}",    # Codex picker: Label · Provider
+                f"{provider['name']}/{configured_model['id']}",
+                configured_model['id'],
+                f"{label} · {provider['name']}",
             ):
-                return p
+                return provider
     return None
 
 
 def get_model_id(model: str) -> Optional[str]:
-    """Return the actual model ID (to send to the provider) for any supported format."""
-    for p in get_providers():
-        for m in p.get('models', []):
-            label = m.get('label', m['id'])
+    """Return the actual upstream model ID for any supported client model ID."""
+    for provider in get_providers():
+        for configured_model in provider.get('models', []):
+            label = configured_model.get('label', configured_model['id'])
             if model in (
-                f"{p['name']}/{m['id']}",
-                m['id'],
-                f"{label} · {p['name']}",
+                f"{provider['name']}/{configured_model['id']}",
+                configured_model['id'],
+                f"{label} · {provider['name']}",
             ):
-                return m['id']
+                return configured_model['id']
     return None
 
 
