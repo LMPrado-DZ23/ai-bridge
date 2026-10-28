@@ -51,7 +51,8 @@ def _set_win_env(key: str, value: str):
     if sys.platform != 'win32':
         return
     try:
-        import winreg, ctypes
+        import ctypes
+        import winreg
         with winreg.OpenKey(winreg.HKEY_CURRENT_USER, 'Environment', 0,
                             winreg.KEY_SET_VALUE) as reg:
             winreg.SetValueEx(reg, key, 0, winreg.REG_EXPAND_SZ, value)
@@ -64,7 +65,8 @@ def _del_win_env(key: str):
     if sys.platform != 'win32':
         return
     try:
-        import winreg, ctypes
+        import ctypes
+        import winreg
         with winreg.OpenKey(winreg.HKEY_CURRENT_USER, 'Environment', 0,
                             winreg.KEY_SET_VALUE) as reg:
             try:
