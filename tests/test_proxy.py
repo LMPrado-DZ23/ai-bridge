@@ -72,6 +72,30 @@ def client():
         yield c
 
 
+def test_codex_model_catalog_uses_provider_model_ids(client, monkeypatch):
+    monkeypatch.setattr('ai_bridge.proxy.cfg.get_providers', lambda: [{
+        'name': 'DeepSeek',
+        'models': [
+            {'id': 'deepseek-flash', 'label': 'DeepSeek Flash'},
+            {'id': 'deepseek-v4-pro', 'label': 'DeepSeek V4 Pro'},
+        ],
+    }])
+
+    assert client.get('/v1/codex-models').status_code == 401
+    response = client.get('/v1/codex-models', headers={
+        'Authorization': 'Bearer ai-bridge-local'
+    })
+
+    assert response.status_code == 200
+    models = response.get_json()['models']
+    assert [model['slug'] for model in models] == [
+        'DeepSeek/deepseek-flash', 'DeepSeek/deepseek-v4-pro'
+    ]
+    assert models[0]['display_name'] == 'DeepSeek Flash · DeepSeek'
+    assert models[0]['supported_in_api'] is True
+    assert models[0]['input_modalities'] == ['text']
+
+
 # ── /health ────────────────────────────────────────────────────────────────────
 
 def test_health(client):

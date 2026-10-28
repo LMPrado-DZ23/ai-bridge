@@ -87,8 +87,8 @@ _TARGETS_META = [
     },
     {
         'id': 'codex',
-        'name': 'Codex',
-        'desc': 'App, terminal e IDEs',
+        'name': 'Codex Desktop',
+        'desc': 'App para computador',
         'icon': '⚡',
         'protocol': 'openai',
     },
@@ -370,10 +370,9 @@ class Bridge:
                     return {'ok': False, 'error': 'Adicione pelo menos um provedor antes de conectar'}
 
                 port = proxy.start()
-                models = cfg.all_picker_models()
 
                 if target_id == 'claude_code':
-                    claude_code.connect(port, models)
+                    claude_code.connect(port, cfg.claude_code_models())
                 elif target_id == 'claude_desktop':
                     claude_desktop.connect(port)
                 elif target_id == 'codex':
@@ -436,11 +435,13 @@ class Bridge:
                     return {'ok': False, 'error': preflight.get('error', 'O provedor ativo não passou no teste de conexão.')}
 
             running = launchers.is_running(target_id)
-            if target_id == 'claude_desktop' and running and not already_in_mode and not confirm_restart:
+            desktop_targets = ('claude_desktop', 'codex')
+            if target_id in desktop_targets and running and not already_in_mode and not confirm_restart:
+                app_name = 'Claude Desktop' if target_id == 'claude_desktop' else 'Codex Desktop'
                 return {
                     'ok': False,
                     'confirm_restart': True,
-                    'error': 'O Claude Desktop precisa reiniciar para aplicar a troca de modo. Salve o trabalho aberto antes de continuar.',
+                    'error': f'{app_name} precisa reiniciar para aplicar a troca de modo. Salve o trabalho aberto antes de continuar.',
                 }
 
             if not already_in_mode:
@@ -450,7 +451,7 @@ class Bridge:
 
             launch_result = launchers.launch_target(
                 target_id,
-                restart=(target_id == 'claude_desktop' and running and not already_in_mode),
+                restart=(target_id in desktop_targets and running and not already_in_mode),
             )
             return {
                 'ok': True,

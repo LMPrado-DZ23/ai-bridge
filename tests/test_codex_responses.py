@@ -35,6 +35,7 @@ wire_api = "responses"
     parsed = tomllib.loads(connected)
     assert parsed['model_provider'] == 'ai_bridge'
     assert parsed['model_providers']['ai_bridge']['base_url'] == 'http://127.0.0.1:38771/v1'
+    assert parsed['model_providers']['ai_bridge']['model_catalog_url'] == 'http://127.0.0.1:38771/v1/codex-models'
     assert '_ai_bridge_port' not in parsed['model_providers']['ai_bridge']
     assert codex._read_port() == 38771
     assert codex.state().connected is True
@@ -133,3 +134,21 @@ def test_claude_desktop_model_list_uses_real_provider_model_ids(monkeypatch):
     ]
     assert config.get_provider_for_model("DeepSeek/deepseek-v4-pro")["name"] == "DeepSeek"
     assert config.get_model_id("DeepSeek/deepseek-v4-pro") == "deepseek-v4-pro"
+
+
+def test_responses_developer_role_is_mapped_to_supported_system_role():
+    request = responses_api.to_chat_request({
+        "input": [
+            {"type": "message", "role": "developer", "content": [
+                {"type": "input_text", "text": "Follow the user's instruction."}
+            ]},
+            {"type": "message", "role": "user", "content": [
+                {"type": "input_text", "text": "hello"}
+            ]},
+        ],
+    }, "deepseek-flash")
+
+    assert request["messages"] == [
+        {"role": "system", "content": "Follow the user's instruction."},
+        {"role": "user", "content": "hello"},
+    ]

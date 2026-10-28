@@ -155,6 +155,7 @@ def _write_config(port: Optional[int]):
         'name = "AI Bridge"',
         f'base_url = "http://127.0.0.1:{port}/v1"',
         'wire_api = "responses"',
+        f'model_catalog_url = "http://127.0.0.1:{port}/v1/codex-models"',
         'experimental_bearer_token = "ai-bridge-local"',
     ]
     content = "\n".join(root + rest_lines + block).strip() + "\n"

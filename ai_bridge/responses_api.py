@@ -41,6 +41,11 @@ def to_chat_request(data: dict, upstream_model: str) -> dict:
                 })
                 continue
             role = item.get("role", "user")
+            # Several OpenAI-compatible upstreams (including DeepSeek) reject
+            # the Responses API's "developer" role. Preserve its priority by
+            # mapping it to the nearest supported Chat Completions role.
+            if role == "developer":
+                role = "system"
             content = item.get("content", "")
             if isinstance(content, list):
                 pieces = []

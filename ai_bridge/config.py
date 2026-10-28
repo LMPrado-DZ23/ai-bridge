@@ -188,7 +188,7 @@ def set_active_model(value: str):
 
 
 def claude_desktop_models() -> list:
-    """Expose the actual configured upstream model IDs to Claude Desktop."""
+    """Expose the actual configured upstream model IDs to Claude Desktop's gateway."""
     result = []
     for provider in get_providers():
         for model in provider.get('models', []):
@@ -196,6 +196,17 @@ def claude_desktop_models() -> list:
                 'name': f"{provider['name']}/{model['id']}",
                 'labelOverride': f"{model.get('label', model['id'])} · {provider['name']}",
             })
+    return result
+
+
+def claude_code_models() -> list:
+    """Build the documented Claude Code modelPicker options format."""
+    result = []
+    for model in all_picker_models():
+        option = {'model': model['value'], 'label': model['label']}
+        if 'claude' not in model['value'].lower():
+            option['behavesAs'] = 'claude-sonnet-5'
+        result.append(option)
     return result
 
 

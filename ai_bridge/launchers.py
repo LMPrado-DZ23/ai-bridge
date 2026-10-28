@@ -28,23 +28,96 @@ $items | ConvertTo-Json -Compress
         return []
 
 
+def _codex_desktop_processes():
+    """Return only processes belonging to the installed Codex MSIX package."""
+    if sys.platform != "win32":
+        return []
+    script = r"""
+$items = Get-CimInstance Win32_Process -Filter "name='ChatGPT.exe'" -ErrorAction SilentlyContinue |
+  Where-Object { $_.ExecutablePath -like '*\WindowsApps\OpenAI.Codex_*\app\ChatGPT.exe' } |
+  Select-Object ProcessId, ExecutablePath
+$items | ConvertTo-Json -Compress
+"""
+    try:
+        result = subprocess.run(
+            ["powershell.exe", "-NoProfile", "-NonInteractive", "-Command", script],
+            capture_output=True, text=True, timeout=5, check=False,
+        )
+        if result.returncode != 0 or not result.stdout.strip():
+            return []
+        parsed = json.loads(result.stdout)
+        return parsed if isinstance(parsed, list) else [parsed]
+    except Exception:
+        return []
+
+
 def is_running(target_id: str) -> bool:
     if target_id == "claude_desktop":
         return bool(_claude_desktop_processes())
-    # Existing Codex/Claude Code sessions are not terminated. A new terminal
-    # opens with the new configuration, leaving any active work untouched.
+    if target_id == "codex":
+        return bool(_codex_desktop_processes())
+    # Claude Code sessions run in terminals; do not kill or replace them.
     return False
+
+
+def _launch_msix_app(app_id: str):
+    """Launch a packaged desktop application by its registered AppsFolder identity."""
+    if sys.platform != "win32":
+        raise RuntimeError("A abertura automática do aplicativo MSIX requer Windows.")
+    # Using AppsFolder avoids relying on CLI PATH or a protocol handler that may
+    # be missing. It starts the installed desktop app without touching its profile.
+    subprocess.Popen(
+        ["explorer.exe", f"shell:AppsFolder\\{app_id}"],
+        close_fds=True,
+    )
 
 
 def _launch_claude_desktop():
     if sys.platform == "win32":
-        # Official deep link launches the registered MSIX app and preserves its profile.
-        os.startfile("claude://claude.ai/new")
+        _launch_msix_app("Claude_pzs8sxrjxfjjc!Claude")
         return
     if sys.platform == "darwin":
         subprocess.Popen(["open", "claude://claude.ai/new"])
         return
     raise RuntimeError("A abertura automática do Claude Desktop não é suportada neste sistema.")
+
+
+def _launch_codex_desktop():
+    if sys.platform == "win32":
+        _launch_msix_app("OpenAI.Codex_2p2nqsd0c76g0!App")
+        return
+    raise RuntimeError("A abertura automática do Codex Desktop não é suportada neste sistema.")
+
+
+def _restart_codex_desktop():
+    processes = _codex_desktop_processes()
+    if not processes:
+        _launch_codex_desktop()
+        return {"launched": True, "restarted": False}
+
+    script = r"""
+$apps = Get-Process -Name ChatGPT -ErrorAction SilentlyContinue |
+  Where-Object { $_.Path -like '*\WindowsApps\OpenAI.Codex_*\app\ChatGPT.exe' -and $_.MainWindowHandle -ne 0 }
+foreach ($app in $apps) { [void]$app.CloseMainWindow() }
+$deadline = (Get-Date).AddSeconds(10)
+do {
+  Start-Sleep -Milliseconds 250
+  $remaining = Get-Process -Name ChatGPT -ErrorAction SilentlyContinue |
+    Where-Object { $_.Path -like '*\WindowsApps\OpenAI.Codex_*\app\ChatGPT.exe' -and $_.MainWindowHandle -ne 0 }
+} while ($remaining -and (Get-Date) -lt $deadline)
+if ($remaining) { exit 23 }
+exit 0
+"""
+    result = subprocess.run(
+        ["powershell.exe", "-NoProfile", "-NonInteractive", "-Command", script],
+        capture_output=True, text=True, timeout=13, check=False,
+    )
+    if result.returncode != 0:
+        raise RuntimeError(
+            "O Codex Desktop não fechou de forma segura. Salve o trabalho e feche o aplicativo manualmente; o AI Bridge não encerrou processos à força."
+        )
+    _launch_codex_desktop()
+    return {"launched": True, "restarted": True}
 
 
 def _restart_claude_desktop():
@@ -120,7 +193,10 @@ def launch_target(target_id: str, restart: bool = False) -> dict:
         _launch_claude_desktop()
         return {"launched": True, "restarted": False}
     if target_id == "codex":
-        return _launch_cli("codex", "Codex via AI Bridge")
+        if restart:
+            return _restart_codex_desktop()
+        _launch_codex_desktop()
+        return {"launched": True, "restarted": False}
     if target_id == "claude_code":
         return _launch_cli("claude", "Claude Code via AI Bridge")
     raise RuntimeError(f"Aplicativo desconhecido: {target_id}")
