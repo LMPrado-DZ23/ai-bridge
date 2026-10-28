@@ -60,6 +60,7 @@ class ClaudeDesktopState:
     installed: bool
     connected: bool
     port: Optional[int]
+    mode: str = 'original'
 
 
 def _is_installed() -> bool:
@@ -158,55 +159,29 @@ def _del_mac_env(key: str):
 
 
 def connect(port: int):
-    """Route Claude Desktop API calls through AI Bridge, preserving user config."""
-    if _CFG_FILE.exists():
-        # Never replace a malformed file with a partial config. Back up the
-        # original before the first AI Bridge mutation.
-        try:
-            json.loads(_CFG_FILE.read_text('utf-8'))
-        except Exception as exc:
-            raise RuntimeError(
-                f'Configuração do Claude Desktop inválida; arquivo preservado: {_CFG_FILE.name}'
-            ) from exc
-
-    data = _load()
-    if _CFG_FILE.exists() and _BRIDGE_KEY not in data:
-        stamp = datetime.now().strftime('%Y%m%d-%H%M%S')
-        backup = _CFG_FILE.with_name(f'{_CFG_FILE.stem}.ai-bridge-backup-{stamp}{_CFG_FILE.suffix}')
-        counter = 1
-        while backup.exists():
-            backup = _CFG_FILE.with_name(
-                f'{_CFG_FILE.stem}.ai-bridge-backup-{stamp}-{counter}{_CFG_FILE.suffix}'
-            )
-            counter += 1
-        shutil.copy2(_CFG_FILE, backup)
-
-    data[_BRIDGE_KEY] = {'port': port}
-    _write(data)
-
-    url = f'http://127.0.0.1:{port}'
-    _set_win_env('ANTHROPIC_BASE_URL', url)
-    _set_mac_env('ANTHROPIC_BASE_URL', url)
+    """Configure the supported Claude Desktop third-party inference gateway."""
+    from . import config as cfg
+    from . import claude_desktop_gateway as gateway
+    return gateway.configure(port, cfg.claude_desktop_models())
 
 
 def disconnect():
-    """Remove AI Bridge config from Claude Desktop."""
-    data = _load()
-    data.pop(_BRIDGE_KEY, None)
-    if data:
-        _write(data)
-
-    _del_win_env('ANTHROPIC_BASE_URL')
-    _del_mac_env('ANTHROPIC_BASE_URL')
+    """Restore the user's prior gateway values and return to signed-in mode."""
+    from . import claude_desktop_gateway as gateway
+    return gateway.disconnect()
 
 
 def state() -> ClaudeDesktopState:
     if not _is_installed():
-        return ClaudeDesktopState(installed=False, connected=False, port=None)
-    bridge = _load().get(_BRIDGE_KEY)
-    if bridge:
-        return ClaudeDesktopState(installed=True, connected=True, port=bridge.get('port'))
-    return ClaudeDesktopState(installed=True, connected=False, port=None)
+        return ClaudeDesktopState(installed=False, connected=False, port=None, mode='unavailable')
+    from . import claude_desktop_gateway as gateway
+    if gateway.is_configured():
+        from . import config as cfg
+        return ClaudeDesktopState(installed=True, connected=True, port=cfg.get_port(), mode='bridge')
+    mode = gateway.deployment_mode()
+    if mode == '3p':
+        return ClaudeDesktopState(installed=True, connected=False, port=None, mode='external')
+    return ClaudeDesktopState(installed=True, connected=False, port=None, mode='original')
 
 
 def is_connected() -> bool:
