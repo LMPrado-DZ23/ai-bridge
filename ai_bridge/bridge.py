@@ -400,6 +400,18 @@ class Bridge:
             except Exception as e:
                 return {'ok': False, 'error': str(e)}
 
+    def _preflight_active_provider(self) -> dict:
+        model = cfg.get_active_model()
+        provider = cfg.get_provider_for_model(model) if model else None
+        if not provider:
+            return {'ok': False, 'error': 'Selecione um modelo de um provedor salvo antes de ativar o AI Bridge.'}
+        if not provider.get('api_key'):
+            return {'ok': False, 'error': f'O provedor {provider.get("name", "selecionado")} não tem uma chave API salva.'}
+        result = self.test_provider(provider['base_url'], provider['api_key'], provider.get('name'))
+        if not result.get('ok'):
+            return {'ok': False, 'error': f"O provedor {provider.get('name', 'selecionado')} não passou no teste: {result.get('error', 'falha de conexão')}"}
+        return {'ok': True}
+
     def activate_target(self, target_id: str, mode: str, confirm_restart: bool = False) -> dict:
         """Switch client mode, apply supported configuration, and open the client."""
         try:
@@ -415,6 +427,14 @@ class Bridge:
                 already_in_mode = current.get('mode', 'original') == mode
             else:
                 already_in_mode = bool(current.get('connected')) == (mode == 'bridge')
+
+            # Do not switch a signed-in client into a broken route. Check the
+            # selected provider first; this probe only requests its model list.
+            if mode == 'bridge' and not already_in_mode:
+                preflight = self._preflight_active_provider()
+                if not preflight.get('ok'):
+                    return {'ok': False, 'error': preflight.get('error', 'O provedor ativo não passou no teste de conexão.')}
+
             running = launchers.is_running(target_id)
             if target_id == 'claude_desktop' and running and not already_in_mode and not confirm_restart:
                 return {
