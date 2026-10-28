@@ -463,5 +463,3 @@ if (document.readyState === 'loading') {
   window.addEventListener('pywebviewready', boot, { once: true });
   setTimeout(() => { if (!window.pywebview) boot(); }, 300);
 }
-
-[executed on device: DZ23_PRADO (23cb9a21-fa9a-41c8-9057-7c779b224cee)]
