@@ -34,8 +34,8 @@ Claude Code / Claude Desktop / Codex
 | Plataforma | Link |
 |------------|------|
 | **Windows** (.exe) | [⬇ AI-Bridge-Windows.exe](https://github.com/LMPrado-DZ23/ai-bridge/releases/latest/download/AI-Bridge-Windows.exe) |
-| **macOS** (.dmg) | [⬇ AI-Bridge-macOS.dmg](https://github.com/LMPrado-DZ23/ai-bridge/releases/latest/download/AI-Bridge-macOS.dmg) |
-| **Linux** (.AppImage) | [⬇ AI-Bridge-Linux.AppImage](https://github.com/LMPrado-DZ23/ai-bridge/releases/latest/download/AI-Bridge-Linux.AppImage) |
+| **macOS** (binário) | [⬇ AI-Bridge-macOS](https://github.com/LMPrado-DZ23/ai-bridge/releases/latest/download/AI-Bridge-macOS) |
+| **Linux** (binário) | [⬇ AI-Bridge-Linux](https://github.com/LMPrado-DZ23/ai-bridge/releases/latest/download/AI-Bridge-Linux) |
 
 Ou veja todas as versões na [página de releases](https://github.com/LMPrado-DZ23/ai-bridge/releases).
 
