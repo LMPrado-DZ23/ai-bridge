@@ -460,7 +460,12 @@ function wireControls() {
     if (saveBtn) saveBtn.disabled = false;
 
     if (res && res.ok) {
-      toast(`Provedor "${name}" salvo.`, 'success');
+      const restartTargets = res.restart_required_targets || [];
+      if (restartTargets.length) {
+        toast(`Provedor "${name}" salvo. Reinicie ${restartTargets.join(' e ')} para atualizar o seletor de modelos.`, 'success');
+      } else {
+        toast(`Provedor "${name}" salvo.`, 'success');
+      }
       await refresh();
       go('providers');
     } else {

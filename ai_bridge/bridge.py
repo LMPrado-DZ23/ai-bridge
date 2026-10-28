@@ -262,7 +262,14 @@ class Bridge:
 
                 cfg.add_provider(name, base_url, api_key, models)
                 self._sync_connected_targets()
-                return {'ok': True}
+                restart_required_targets = []
+                if claude_code.is_connected():
+                    restart_required_targets.append('Claude Code')
+                if claude_desktop.is_connected():
+                    restart_required_targets.append('Claude Desktop')
+                if codex_mod.is_connected():
+                    restart_required_targets.append('Codex Desktop')
+                return {'ok': True, 'restart_required_targets': restart_required_targets}
             except Exception as e:
                 return {'ok': False, 'error': str(e)}
 

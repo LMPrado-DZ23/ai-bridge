@@ -199,7 +199,7 @@ def _write_config(port: Optional[int]):
     root.extend([
         f'model_provider = "{_BRIDGE_PROVIDER}"',
         f'model = "{default_model}"',
-        'model_catalog_json = "~/.codex/ai-bridge-models.json"',
+        f'model_catalog_json = "{CODEX_CATALOG_FILE.resolve().as_posix()}"',
     ])
 
     # Remove an earlier managed block only; all unrelated provider blocks remain untouched.

@@ -37,7 +37,7 @@ wire_api = "responses"
     assert parsed['model_provider'] == 'ai_bridge'
     assert parsed['model_providers']['ai_bridge']['base_url'] == 'http://127.0.0.1:38771/v1'
     assert parsed['model_providers']['ai_bridge']['model_catalog_url'] == 'http://127.0.0.1:38771/v1/codex-models'
-    assert parsed['model_catalog_json'] == '~/.codex/ai-bridge-models.json'
+    assert parsed['model_catalog_json'] == (codex_dir / 'ai-bridge-models.json').resolve().as_posix()
     catalog = json.loads((codex_dir / 'ai-bridge-models.json').read_text(encoding='utf-8'))
     assert [model['slug'] for model in catalog['models']] == ['DeepSeek/deepseek-chat']
     assert catalog['models'][0]['display_name'] == 'DeepSeek Chat · DeepSeek'
