@@ -102,7 +102,8 @@ def _target_state(target_id: str) -> dict:
     if target_id == 'claude_desktop':
         s = claude_desktop.state()
         meta = _TARGETS_META[1]
-        return {**meta, 'installed': s.installed, 'connected': s.connected, 'port': s.port}
+        return {**meta, 'installed': s.installed, 'connected': s.connected, 'port': s.port,
+                'restart_required': s.connected}
     if target_id == 'codex':
         s = codex_mod.state()
         meta = _TARGETS_META[2]
@@ -308,7 +309,34 @@ class Bridge:
                 data = resp.json()
                 ids = [m.get('id', '') for m in data.get('data', [])]
                 return {'ok': True, 'models': ids[:30], 'models_count': len(ids)}
-            return {'ok': False, 'error': f'HTTP {resp.status_code}'}
+
+            # Surface a useful provider diagnostic without ever echoing the
+            # submitted API key back into the UI.
+            detail = ''
+            try:
+                payload = resp.json()
+                error = payload.get('error', payload) if isinstance(payload, dict) else payload
+                if isinstance(error, dict):
+                    detail = str(error.get('message') or error.get('detail') or error.get('code') or '')
+                elif isinstance(error, str):
+                    detail = error
+            except Exception:
+                detail = (getattr(resp, 'text', '') or '').strip()
+            if api_key:
+                detail = detail.replace(api_key, '[chave ocultada]')
+            detail = detail[:220].strip()
+
+            if resp.status_code == 401:
+                message = 'HTTP 401 — autenticação recusada. Confira a chave API e se ela pertence a este provedor.'
+            elif resp.status_code == 403:
+                message = 'HTTP 403 — acesso negado pelo provedor. Confira permissões, conta e saldo.'
+            elif resp.status_code == 404:
+                message = 'HTTP 404 — endpoint não encontrado. Confira a URL base do provedor.'
+            else:
+                message = f'HTTP {resp.status_code} — o provedor recusou a solicitação.'
+            if detail:
+                message += f' Detalhe: {detail}'
+            return {'ok': False, 'error': message, 'status_code': resp.status_code}
         except httpx.ConnectError:
             return {'ok': False, 'error': 'Não foi possível conectar. Verifique a URL.'}
         except httpx.TimeoutException:
@@ -367,3 +395,5 @@ class Bridge:
 
     def get_presets(self) -> dict:
         return {'ok': True, 'presets': _PRESETS}
+
+[executed on device: DZ23_PRADO (23cb9a21-fa9a-41c8-9057-7c779b224cee)]
