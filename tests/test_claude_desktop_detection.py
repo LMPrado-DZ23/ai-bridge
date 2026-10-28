@@ -178,3 +178,6 @@ def test_claude_desktop_models_use_claude_compatible_ids_and_route_to_upstream(m
     assert config.get_provider_for_model("claude-sonnet-5")["name"] == "DeepSeek"
     assert config.get_model_id("claude-sonnet-5") == "deepseek-v4-pro"
     assert config.get_model_id("claude-sonnet-5-2") == "deepseek-flash"
+    # Compatibility for Claude Desktop's previously persisted Invision model.
+    assert config.get_model_id("claude-opus-5-5") == "deepseek-v4-pro"
+    assert all(model["id"] != "claude-opus-5-5" for model in models)

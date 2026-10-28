@@ -201,6 +201,11 @@ def _claude_desktop_alias_map() -> dict:
     for index, model in enumerate(models, start=1):
         alias = 'claude-sonnet-5' if index == 1 else f'claude-sonnet-5-{index}'
         aliases[alias] = model['value']
+    # Claude Desktop can retain the previously selected gateway model across
+    # profile changes. Keep the known Invision preset ID routable during
+    # migration, but do not advertise it as an extra picker option.
+    if active:
+        aliases['claude-opus-5-5'] = active
     return aliases
 
 
@@ -211,6 +216,7 @@ def claude_desktop_models() -> list:
     return [
         {'id': alias, 'name': f"{labels[upstream]} (AI Bridge)"}
         for alias, upstream in aliases.items()
+        if alias != 'claude-opus-5-5'
     ]
 
 
