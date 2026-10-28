@@ -196,9 +196,9 @@ def stream_to_anthropic(oai_lines: Iterator[str], model: str) -> Iterator[str]:
     msg_id = f"msg_{uuid.uuid4().hex}"
 
     sent_start = False
-    text_block_open = False
-    tool_blocks: dict = {}      # index → {'id', 'name', 'args'}
-    block_offset = 0            # how many blocks precede tool call blocks
+    next_idx = 0
+    text_block_idx = None       # assigned on first text delta
+    tool_block_map: dict = {}   # oai_idx → {'blk_idx', 'id', 'name', 'args'}
     input_tokens = 0
     output_tokens = 0
     finish_reason = 'stop'
@@ -253,38 +253,40 @@ def stream_to_anthropic(oai_lines: Iterator[str], model: str) -> Iterator[str]:
         # Text delta
         text = delta.get('content')
         if text:
-            if not text_block_open:
+            if text_block_idx is None:
+                text_block_idx = next_idx
+                next_idx += 1
                 yield _sse('content_block_start', {
                     'type': 'content_block_start',
-                    'index': 0,
+                    'index': text_block_idx,
                     'content_block': {'type': 'text', 'text': ''},
                 })
-                text_block_open = True
-                block_offset = 1
             yield _sse('content_block_delta', {
                 'type': 'content_block_delta',
-                'index': 0,
+                'index': text_block_idx,
                 'delta': {'type': 'text_delta', 'text': text},
             })
 
         # Tool call deltas
         for tc in delta.get('tool_calls', []):
-            idx = tc.get('index', 0)
-            if idx not in tool_blocks:
+            oai_idx = tc.get('index', 0)
+            if oai_idx not in tool_block_map:
                 fn = tc.get('function', {})
-                tool_blocks[idx] = {
+                blk_idx = next_idx
+                next_idx += 1
+                tool_block_map[oai_idx] = {
+                    'blk_idx': blk_idx,
                     'id': tc.get('id', f'call_{uuid.uuid4().hex[:8]}'),
                     'name': fn.get('name', ''),
                     'args': fn.get('arguments', ''),
                 }
-                blk_idx = block_offset + idx
                 yield _sse('content_block_start', {
                     'type': 'content_block_start',
                     'index': blk_idx,
                     'content_block': {
                         'type': 'tool_use',
-                        'id': tool_blocks[idx]['id'],
-                        'name': tool_blocks[idx]['name'],
+                        'id': tool_block_map[oai_idx]['id'],
+                        'name': tool_block_map[oai_idx]['name'],
                         'input': {},
                     },
                 })
@@ -292,11 +294,10 @@ def stream_to_anthropic(oai_lines: Iterator[str], model: str) -> Iterator[str]:
                 fn = tc.get('function', {})
                 args_delta = fn.get('arguments', '')
                 if args_delta:
-                    tool_blocks[idx]['args'] += args_delta
-                    blk_idx = block_offset + idx
+                    tool_block_map[oai_idx]['args'] += args_delta
                     yield _sse('content_block_delta', {
                         'type': 'content_block_delta',
-                        'index': blk_idx,
+                        'index': tool_block_map[oai_idx]['blk_idx'],
                         'delta': {'type': 'input_json_delta', 'partial_json': args_delta},
                     })
 
@@ -314,13 +315,13 @@ def stream_to_anthropic(oai_lines: Iterator[str], model: str) -> Iterator[str]:
         yield _sse('ping', {'type': 'ping'})
 
     # Close blocks
-    if text_block_open:
-        yield _sse('content_block_stop', {'type': 'content_block_stop', 'index': 0})
+    if text_block_idx is not None:
+        yield _sse('content_block_stop', {'type': 'content_block_stop', 'index': text_block_idx})
 
-    for idx in sorted(tool_blocks):
+    for oai_idx in sorted(tool_block_map):
         yield _sse('content_block_stop', {
             'type': 'content_block_stop',
-            'index': block_offset + idx,
+            'index': tool_block_map[oai_idx]['blk_idx'],
         })
 
     yield _sse('message_delta', {

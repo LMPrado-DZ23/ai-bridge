@@ -4,12 +4,18 @@ import os
 from pathlib import Path
 from typing import Optional
 
+_keyring_error: str = ''
+
 try:
     import keyring
     import keyring.errors
     _KEYRING_AVAILABLE = True
-except ImportError:
+except ImportError as e:
     _KEYRING_AVAILABLE = False
+    _keyring_error = str(e)
+    logging.getLogger(__name__).warning(
+        'keyring not available — API keys will NOT be persisted: %s', e
+    )
 
 log = logging.getLogger(__name__)
 
