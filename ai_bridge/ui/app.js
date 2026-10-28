@@ -269,8 +269,8 @@ async function renderAdd(editName) {
           if (saveLabel) saveLabel.classList.remove('hidden');
         }
       }
-      if (fModels) fModels.value = (detail.models || []).map(m =>
-        typeof m === 'string' ? m : `${m.id}|${m.name}`
+      if (fModels) fModels.value = detail.models_raw || (detail.models || []).map(m =>
+        typeof m === 'string' ? m : `${m.id}|${m.label || m.name || m.id}`
       ).join('\n');
     }
   }
