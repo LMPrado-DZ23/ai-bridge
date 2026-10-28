@@ -55,3 +55,57 @@ def test_test_provider_reports_timeout(monkeypatch):
     result = Bridge().test_provider("https://example.com/v1", "test-key")
 
     assert result == {"ok": False, "error": "Timeout ao conectar."}
+
+
+def test_activate_target_requires_restart_confirmation_before_mutating(monkeypatch):
+    from ai_bridge import bridge as bridge_module
+    app = bridge_module.Bridge()
+    monkeypatch.setattr(bridge_module, "_target_state", lambda _target: {
+        "id": "claude_desktop", "installed": True, "connected": False, "mode": "original"
+    })
+    monkeypatch.setattr(bridge_module.launchers, "is_running", lambda _target: True)
+    monkeypatch.setattr(app, "connect_target", lambda _target: (_ for _ in ()).throw(AssertionError("must not mutate before confirmation")))
+
+    result = app.activate_target("claude_desktop", "bridge")
+
+    assert result["confirm_restart"] is True
+
+
+def test_activate_target_configures_and_launches_after_confirmation(monkeypatch):
+    from ai_bridge import bridge as bridge_module
+    app = bridge_module.Bridge()
+    calls = []
+    monkeypatch.setattr(bridge_module, "_target_state", lambda _target: {
+        "id": "claude_desktop", "installed": True, "connected": False, "mode": "original"
+    })
+    monkeypatch.setattr(bridge_module.launchers, "is_running", lambda _target: True)
+    monkeypatch.setattr(app, "connect_target", lambda _target: {"ok": True, "port": 38771})
+    monkeypatch.setattr(bridge_module.launchers, "launch_target", lambda target, restart=False: (
+        calls.append((target, restart)) or {"launched": True, "restarted": True}
+    ))
+
+    result = app.activate_target("claude_desktop", "bridge", confirm_restart=True)
+
+    assert result["ok"] is True
+    assert result["mode"] == "bridge"
+    assert calls == [("claude_desktop", True)]
+
+
+def test_activate_original_mode_restores_and_opens_codex(monkeypatch):
+    from ai_bridge import bridge as bridge_module
+    app = bridge_module.Bridge()
+    calls = []
+    monkeypatch.setattr(bridge_module, "_target_state", lambda _target: {
+        "id": "codex", "installed": True, "connected": True, "port": 38771
+    })
+    monkeypatch.setattr(bridge_module.launchers, "is_running", lambda _target: False)
+    monkeypatch.setattr(app, "disconnect_target", lambda _target: {"ok": True})
+    monkeypatch.setattr(bridge_module.launchers, "launch_target", lambda target, restart=False: (
+        calls.append((target, restart)) or {"launched": True, "restarted": False}
+    ))
+
+    result = app.activate_target("codex", "original")
+
+    assert result["ok"] is True
+    assert result["mode"] == "original"
+    assert calls == [("codex", False)]
