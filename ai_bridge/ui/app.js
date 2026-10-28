@@ -385,7 +385,9 @@ function wireControls() {
     window.pywebview?.api?.minimize();
   });
   document.getElementById('btn-close')?.addEventListener('click', () => {
-    window.pywebview?.api?.close_to_tray();
+    const api = window.pywebview?.api;
+    if (api?.quit) api.quit();
+    else if (api?.close) api.close();
   });
 
   // Home: providers button

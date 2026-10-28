@@ -39,6 +39,36 @@ def test_resize_window_reports_missing_window():
     assert result == {"ok": False, "error": "Janela indisponível."}
 
 
+def test_close_exits_instead_of_hiding_to_tray():
+    app = Bridge()
+    window = Mock()
+    tray = Mock()
+    app.set_window(window)
+    app.set_tray(tray)
+
+    result = app.close()
+
+    assert result == {"ok": True, "closing": True}
+    tray.stop.assert_called_once_with()
+    window.destroy.assert_called_once_with()
+    assert app._window is None
+    assert app._tray is None
+
+
+def test_close_to_tray_is_explicit_and_keeps_process_alive():
+    app = Bridge()
+    window = Mock()
+    tray = Mock()
+    app.set_window(window)
+    app.set_tray(tray)
+
+    result = app.close_to_tray()
+
+    assert result == {"ok": True, "hidden": True}
+    window.hide.assert_called_once_with()
+    window.destroy.assert_not_called()
+
+
 def test_test_provider_returns_model_count(monkeypatch):
     response = Mock()
     response.status_code = 200

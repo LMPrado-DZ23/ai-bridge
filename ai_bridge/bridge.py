@@ -151,22 +151,34 @@ class Bridge:
         return {"ok": True, "width": width, "height": height}
 
     def close(self):
-        """Hide the window to the system tray (if available) instead of destroying it."""
-        if self._window:
-            if self._tray:
-                self._window.hide()
-            else:
-                self._window.destroy()
+        """Close the window explicitly; the X button must not leave a hidden process."""
+        return self.quit()
 
-    def hide_window(self):
-        self.close()
-
-    def quit(self):
-        """Fully exit the application (called from tray menu)."""
-        if self._tray:
-            self._tray.stop()
+    def close_to_tray(self):
+        """Explicitly hide the window while keeping the tray icon available."""
+        if self._window and self._tray:
+            self._window.hide()
+            return {"ok": True, "hidden": True}
         if self._window:
             self._window.destroy()
+            return {"ok": True, "hidden": False}
+        return {"ok": False, "error": "Janela indisponível."}
+
+    def hide_window(self):
+        return self.close_to_tray()
+
+    def quit(self):
+        """Stop the tray icon and destroy the window so the process exits."""
+        tray, self._tray = self._tray, None
+        if tray:
+            try:
+                tray.stop()
+            except Exception:
+                pass
+        window, self._window = self._window, None
+        if window:
+            window.destroy()
+        return {"ok": True, "closing": True}
 
     def open_url(self, url: str):
         if url and (url.startswith('https://') or url.startswith('http://localhost')):

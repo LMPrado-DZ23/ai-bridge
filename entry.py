@@ -71,10 +71,7 @@ def main():
             window.show()
 
         def _quit(_icon=None, _item=None):
-            nonlocal tray
-            if tray:
-                tray.stop()
-            window.destroy()
+            bridge.quit()
 
         tray = pystray.Icon(
             'ai-bridge',
@@ -87,10 +84,16 @@ def main():
         )
         bridge.set_tray(tray)
 
-        # Cancel native close (e.g. ALT+F4) → hide to tray instead
+        # Native close (including ALT+F4) exits instead of leaving a hidden process.
         def _on_closing():
-            window.hide()
-            return False
+            nonlocal tray
+            current_tray, tray = tray, None
+            if current_tray:
+                try:
+                    current_tray.stop()
+                except Exception:
+                    pass
+            return True
 
         window.events.closing += _on_closing
 

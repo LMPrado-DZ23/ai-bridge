@@ -21,6 +21,18 @@ def test_windows_executable_and_tray_use_branded_icon():
     assert "ai-bridge.ico" in entry
 
 
+def test_close_button_calls_real_quit_api():
+    source = (ROOT / "ai_bridge" / "ui" / "app.js").read_text(encoding="utf-8")
+    assert "if (api?.quit) api.quit()" in source
+    assert "close_to_tray()" not in source
+
+
+def test_native_close_does_not_hide_to_tray():
+    source = (ROOT / "entry.py").read_text(encoding="utf-8")
+    assert "return True" in source
+    assert "window.hide()" not in source
+
+
 def test_mode_switch_ui_has_no_second_confirmation_dialog():
     source = (ROOT / "ai_bridge" / "ui" / "app.js").read_text(encoding="utf-8")
     assert "window.confirm(" not in source
