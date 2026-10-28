@@ -381,16 +381,29 @@ function wireControls() {
     const key = document.getElementById('f-key')?.value?.trim();
     const btn = document.getElementById('btn-test');
     const resultEl = document.getElementById('test-result');
+    const importBtn = document.getElementById('btn-import-models');
     if (!url) { toast('Preencha a URL antes de testar.', 'error'); return; }
     if (!key && !_editingProvider) { toast('Preencha a chave antes de testar.', 'error'); return; }
-    if (btn) { btn.textContent = '…'; btn.disabled = true; }
+    if (btn) { btn.textContent = 'Testando…'; btn.disabled = true; }
+    if (importBtn) importBtn.hidden = true;
     const res = await api('test_provider', url, key, _editingProvider || null);
-    if (btn) { btn.textContent = 'Testar'; btn.disabled = false; }
+    if (btn) { btn.textContent = 'Testar conexão'; btn.disabled = false; }
     if (resultEl) {
       resultEl.hidden = false;
       if (res && res.ok) {
         resultEl.className = 'ab-test-ok';
-        resultEl.textContent = `✓ Conexão OK — ${res.models_count ?? '?'} modelo(s)`;
+        resultEl.textContent = `✓ Conexão OK — ${res.models_count ?? (res.models || []).length} modelo(s)`;
+        if (importBtn && (res.models || []).length) {
+          importBtn.hidden = false;
+          importBtn.onclick = () => {
+            const modelsField = document.getElementById('f-models');
+            const current = new Set((modelsField?.value || '').split(/\\r?\\n/).map(x => x.trim()).filter(Boolean));
+            (res.models || []).forEach(id => current.add(id));
+            if (modelsField) modelsField.value = Array.from(current).join('\\n');
+            importBtn.hidden = true;
+            toast(`${(res.models || []).length} modelos importados. Revise a lista antes de salvar.`, 'success');
+          };
+        }
       } else {
         resultEl.className = 'ab-test-error';
         resultEl.textContent = `✗ ${res?.error || 'Falha na conexão'}`;
