@@ -11,7 +11,7 @@
 <!-- Title bar -->
 <header class="ab-bar pywebview-drag-region">
   <div class="ab-brand pywebview-drag-region">
-    <img src="icons/bridge.svg" width="18" height="18" alt="">
+    <img src="icons/bridge.svg" width="16" height="16" alt="">
     <span>AI Bridge</span>
   </div>
   <div class="ab-win">
@@ -26,40 +26,91 @@
 
 <main class="ab-stage">
 
-  <!-- ── Screen: Home ────────────────────────────────────────────────────── -->
+  <!-- ── Screen: Home (target selector) ────────────────────────────────────── -->
   <section class="ab-screen" data-screen="home">
-
-    <!-- Providers -->
-    <div>
-      <div class="ab-section-head">
-        <span class="ab-section-title">Provedores</span>
-        <button class="btn btn-ghost btn-sm" id="btn-add-provider">+ Adicionar</button>
-      </div>
-      <div id="provider-list">
-        <!-- populated by JS -->
-      </div>
+    <div class="ab-home-header">
+      <h1 class="ab-home-title">Onde você quer usar<br>o AI Bridge?</h1>
+      <button class="ab-providers-btn" id="btn-providers">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="7" cy="7" r="5.5"/>
+          <path d="M7 4v3l2 1.5"/>
+        </svg>
+        Provedores
+        <span class="ab-provider-badge" id="home-provider-count"></span>
+      </button>
     </div>
-
-    <div class="ab-divider"></div>
-
-    <!-- Ferramentas / Targets -->
-    <div>
-      <div class="ab-section-head">
-        <span class="ab-section-title">Ferramentas</span>
-        <span class="ab-hint" id="proxy-hint"></span>
-      </div>
-      <div class="ab-target-list" id="target-list">
-        <!-- populated by JS -->
-      </div>
+    <div class="ab-target-cards" id="target-cards">
+      <!-- populated by JS -->
     </div>
-
   </section>
 
-  <!-- ── Screen: Add / Edit Provider ────────────────────────────────────── -->
-  <section class="ab-screen" data-screen="add" hidden>
+  <!-- ── Screen: Target detail ────────────────────────────────────────────── -->
+  <section class="ab-screen" data-screen="target" hidden>
+    <div class="ab-screen-nav">
+      <button class="ab-back" id="btn-back-target">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M9 2L4 7l5 5"/></svg>
+        Voltar
+      </button>
+    </div>
 
-    <div>
-      <button class="ab-back" id="btn-back">
+    <div class="ab-conn-area">
+      <div class="ab-conn-diagram">
+        <div class="ab-conn-node" id="target-icon-wrap">
+          <div class="ab-conn-icon" id="target-icon-left"></div>
+          <div class="ab-conn-label" id="target-title"></div>
+        </div>
+
+        <div class="ab-conn-bridge" id="target-conn-line">
+          <div class="ab-conn-line-track">
+            <div class="ab-conn-line-fill"></div>
+          </div>
+        </div>
+
+        <div class="ab-conn-node">
+          <div class="ab-conn-icon" id="target-icon-right"></div>
+          <div class="ab-conn-label">AI Bridge</div>
+        </div>
+      </div>
+
+      <div class="ab-conn-status" id="target-conn-status"></div>
+    </div>
+
+    <div class="ab-target-desc" id="target-desc"></div>
+
+    <div class="ab-pill-toggle" id="pill-toggle">
+      <button class="ab-pill-btn" id="pill-bridge" data-action="connect">AI Bridge</button>
+      <button class="ab-pill-btn" id="pill-original" data-action="disconnect">Provedor Original</button>
+    </div>
+
+    <div class="ab-no-provider" id="target-no-provider" hidden>
+      <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="7" cy="7" r="5.5"/><path d="M7 4.5v3M7 9.5v.5"/></svg>
+      Nenhum provedor configurado.
+      <button class="ab-link" id="btn-go-providers-from-target">Adicionar provedor</button>
+    </div>
+  </section>
+
+  <!-- ── Screen: Providers list ────────────────────────────────────────────── -->
+  <section class="ab-screen" data-screen="providers" hidden>
+    <div class="ab-screen-nav">
+      <button class="ab-back" id="btn-back-providers">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M9 2L4 7l5 5"/></svg>
+        Voltar
+      </button>
+      <button class="btn btn-primary btn-sm" id="btn-add-from-providers">+ Adicionar</button>
+    </div>
+
+    <div class="ab-screen-title">Provedores</div>
+    <div class="ab-screen-sub">APIs compatíveis com OpenAI</div>
+
+    <div id="provider-list-screen">
+      <!-- populated by JS -->
+    </div>
+  </section>
+
+  <!-- ── Screen: Add / Edit Provider ────────────────────────────────────────── -->
+  <section class="ab-screen" data-screen="add" hidden>
+    <div class="ab-screen-nav">
+      <button class="ab-back" id="btn-back-add">
         <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M9 2L4 7l5 5"/></svg>
         Voltar
       </button>
@@ -110,8 +161,7 @@
         <textarea class="ab-textarea" id="f-models" rows="4"
           placeholder="deepseek-chat|DeepSeek Chat&#10;deepseek-reasoner|DeepSeek Reasoner&#10;&#10;Formato: id|Nome visível  (ou apenas  id)"></textarea>
         <div class="ab-hint">
-          Um modelo por linha. Use o formato <code>id|Nome</code> para personalizar o nome exibido no Claude Code.<br>
-          Ex: <code>deepseek-chat|DeepSeek Chat</code>
+          Um modelo por linha. Use <code>id|Nome</code> para personalizar o nome.
         </div>
       </div>
 
@@ -123,7 +173,6 @@
       </div>
 
     </form>
-
   </section>
 
 </main>
