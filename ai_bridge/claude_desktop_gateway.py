@@ -117,6 +117,13 @@ def configure(port: int, models: list) -> dict:
     # Keep the app's current metadata and any other saved entries. Only switch
     # the applied ID to the AI Bridge-owned config.
     new_meta = dict(meta)
+    # Claude Desktop validates appliedId against entries. If the profile ID is
+    # not also registered here, the app can discard it on startup and silently
+    # fall back to first-party mode.
+    entries = [str(item) for item in new_meta.get("entries", []) if item]
+    if config_id not in entries:
+        entries.append(config_id)
+    new_meta["entries"] = entries
     new_meta["appliedId"] = config_id
     # Older Claude Desktop builds used activeConfigId; harmless for current builds.
     if "activeConfigId" in new_meta:
@@ -175,11 +182,36 @@ def disconnect() -> dict:
     app_config = _read_json(_APP_CONFIG, "A configuração local do Claude Desktop", default={})
     owns_active = _active_id(meta) == config_id
 
+    original_meta = dict(state.get("original_meta") or {})
+    current_entries = [str(item) for item in meta.get("entries", []) if item]
+    original_entries = [str(item) for item in original_meta.get("entries", []) if item]
+    extra_entries = [
+        item for item in current_entries
+        if item != config_id and item not in original_entries
+    ]
+
     if owns_active:
+        # Restore the previous active profile, but keep unrelated profiles that
+        # may have been added while AI Bridge was connected.
         if state.get("meta_existed"):
-            _write_json(_META_FILE, state.get("original_meta") or {})
+            restored_meta = dict(original_meta)
+            restored_entries = original_entries + extra_entries
+            if restored_entries or "entries" in original_meta:
+                restored_meta["entries"] = restored_entries
+            _write_json(_META_FILE, restored_meta)
+        elif extra_entries:
+            restored_meta = dict(meta)
+            restored_meta["entries"] = extra_entries
+            restored_meta.pop("appliedId", None)
+            restored_meta.pop("activeConfigId", None)
+            _write_json(_META_FILE, restored_meta)
         else:
             _META_FILE.unlink(missing_ok=True)
+    else:
+        # The user switched to another profile while connected; do not change
+        # that active selection, only remove the AI Bridge-owned profile ID.
+        meta["entries"] = [item for item in current_entries if item != config_id]
+        _write_json(_META_FILE, meta)
 
     if entry_path and entry_path.is_file():
         # Delete only the entry created by this AI Bridge snapshot.
@@ -207,6 +239,9 @@ def is_configured(port=None) -> bool:
         meta = _read_json(_META_FILE, "O índice configLibrary", default={})
         config_id = _active_id(meta)
         if not config_id:
+            return False
+        entries = meta.get("entries", [])
+        if not isinstance(entries, list) or config_id not in [str(item) for item in entries]:
             return False
         entry = _read_json(_entry_path(config_id), "A configuração ativa do gateway", default={})
         base_url = entry.get("inferenceGatewayBaseUrl", "")

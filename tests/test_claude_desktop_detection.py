@@ -79,7 +79,8 @@ def test_connect_writes_official_config_library_and_preserves_app_settings(tmp_p
     assert result["config_path"] == str(library / f"{result['config_id']}.json")
     meta = json.loads(meta_file.read_text(encoding="utf-8"))
     assert meta["appliedId"] == result["config_id"]
-    assert meta["entries"] == ["preexisting-entry"]
+    assert meta["entries"] == ["preexisting-entry", result["config_id"]]
+    assert meta["appliedId"] in meta["entries"]
     entry = json.loads((library / f"{result['config_id']}.json").read_text(encoding="utf-8"))
     assert entry["inferenceProvider"] == "gateway"
     assert entry["inferenceCredentialKind"] == "static"
@@ -135,12 +136,20 @@ def test_disconnect_does_not_override_a_profile_switched_by_the_user(tmp_path, m
     library, meta_file, app_config, _, backup_file = _prepare_gateway_test(tmp_path, monkeypatch)
     result = claude_desktop_gateway.configure(38771, _models())
     meta = json.loads(meta_file.read_text(encoding="utf-8"))
+    meta["entries"].append("another-profile")
     meta["appliedId"] = "another-profile"
     meta_file.write_text(json.dumps(meta), encoding="utf-8")
+    (library / "another-profile.json").write_text(json.dumps({
+        "inferenceProvider": "gateway",
+        "inferenceGatewayBaseUrl": "https://other.example",
+    }), encoding="utf-8")
 
     claude_desktop_gateway.disconnect()
 
-    assert json.loads(meta_file.read_text(encoding="utf-8"))["appliedId"] == "another-profile"
+    restored_meta = json.loads(meta_file.read_text(encoding="utf-8"))
+    assert restored_meta["appliedId"] == "another-profile"
+    assert restored_meta["entries"] == ["another-profile"]
+    assert (library / "another-profile.json").exists()
     assert not (library / f"{result['config_id']}.json").exists()
     # The user selected another profile; keep the 3p mode rather than force 1p.
     assert json.loads(app_config.read_text(encoding="utf-8"))["deploymentMode"] == "3p"
@@ -181,3 +190,15 @@ def test_claude_desktop_models_use_claude_compatible_ids_and_route_to_upstream(m
     # Compatibility for Claude Desktop's previously persisted Invision model.
     assert config.get_model_id("claude-opus-5-5") == "deepseek-v4-pro"
     assert all(model["id"] != "claude-opus-5-5" for model in models)
+
+
+def test_gateway_detection_rejects_applied_id_not_registered_in_entries(tmp_path, monkeypatch):
+    library, meta_file, app_config, _, backup_file = _prepare_gateway_test(tmp_path, monkeypatch)
+    (library / "orphan.json").write_text(json.dumps({
+        "inferenceProvider": "gateway",
+        "inferenceGatewayBaseUrl": "http://127.0.0.1:38771",
+        "inferenceGatewayApiKey": "ai-bridge-local",
+    }), encoding="utf-8")
+    meta_file.write_text(json.dumps({"appliedId": "orphan", "entries": []}), encoding="utf-8")
+
+    assert not claude_desktop_gateway.is_configured(38771)

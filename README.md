@@ -143,7 +143,7 @@ pip install pytest
 python -m pytest tests/ -v
 ```
 
-A suíte contém **77 testes automatizados** cobrindo:
+A suíte contém **78 testes automatizados** cobrindo:
 
 - Tradução Anthropic Messages ↔ OpenAI Chat Completions e Responses API
 - Streaming SSE e tool/function calling
@@ -152,7 +152,7 @@ A suíte contém **77 testes automatizados** cobrindo:
 - Conexão/desconexão reversível, preservação do provedor Invision e configuração TOML
 - Restauração segura de configurações e detecção de instalação dos aplicativos
 
-Validação local mais recente: `77 passed`; `compileall` e `git diff --check` também concluídos sem erros.
+Validação local mais recente: `78 passed`; `compileall` e `git diff --check` também concluídos sem erros.
 
 ---
 
