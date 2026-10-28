@@ -130,14 +130,21 @@ function renderTarget(key) {
   // Connection line
   const connLine = document.getElementById('target-conn-line');
   if (connLine) {
-    connLine.classList.toggle('ab-conn-bridge--active', t.connected);
+    connLine.classList.toggle('ab-conn-bridge--active', t.mode === 'bridge' || (t.mode == null && t.connected));
   }
 
   // Status
   const statusEl = document.getElementById('target-conn-status');
   if (statusEl) {
     if (!t.installed) statusEl.textContent = 'Não instalado neste sistema';
-    else if (t.connected && t.id === 'claude_desktop') statusEl.textContent = 'Configurado no AI Bridge. Feche e reabra o Claude Desktop para aplicar.';
+    else if (t.id === 'claude_desktop' && t.mode === 'bridge') {
+      const available = (_state.models || []).slice(0, 3).map(m => m.label).join(' · ');
+      statusEl.textContent = available
+        ? 'AI Bridge configurado · modelos disponíveis: ' + available
+        : 'AI Bridge configurado, mas nenhum modelo está disponível.';
+    }
+    else if (t.id === 'claude_desktop' && t.mode === 'external') statusEl.textContent = 'Outro gateway está ativo. Escolha AI Bridge ou Provedor padrão.';
+    else if (t.connected && t.id === 'codex') statusEl.textContent = 'Conectado via AI Bridge · modelo padrão: ' + (_state.active_model_label || 'não selecionado');
     else if (t.connected) statusEl.textContent = 'Conectado via AI Bridge';
     else statusEl.textContent = 'Usando provedor original';
   }
@@ -146,8 +153,23 @@ function renderTarget(key) {
   const pillBridge = document.getElementById('pill-bridge');
   const pillOriginal = document.getElementById('pill-original');
   if (pillBridge && pillOriginal) {
-    pillBridge.classList.toggle('ab-pill-btn--active', t.connected);
-    pillOriginal.classList.toggle('ab-pill-btn--active', !t.connected);
+    const bridgeActive = t.mode ? t.mode === 'bridge' : !!t.connected;
+    const originalActive = t.mode ? t.mode === 'original' : !t.connected;
+    pillBridge.classList.toggle('ab-pill-btn--active', bridgeActive);
+    pillOriginal.classList.toggle('ab-pill-btn--active', originalActive);
+  }
+
+  // Codex default model selection. This changes only the default model, not login/auth.
+  const modelWrap = document.getElementById('target-model-select-wrap');
+  const modelSelect = document.getElementById('target-model-select');
+  if (modelWrap) modelWrap.hidden = t.id !== 'codex';
+  if (modelSelect && t.id === 'codex') {
+    const models = _state.models || [];
+    modelSelect.innerHTML = models.length
+      ? models.map(m => '<option value="' + escHtml(m.value) + '">' + escHtml(m.label) + '</option>').join('')
+      : '<option value="">Nenhum modelo configurado</option>';
+    modelSelect.value = _state.active_model || (models[0]?.value || '');
+    modelSelect.disabled = models.length === 0;
   }
 
   // No provider warning
@@ -333,34 +355,40 @@ function wireControls() {
   document.getElementById('btn-cancel')?.addEventListener('click', () =>
     go('providers'));
 
-  // Pill toggle (connect / disconnect)
-  document.getElementById('pill-bridge')?.addEventListener('click', async () => {
+  // Mode selector: configure, open and (when necessary) safely restart the client.
+  async function activateClientMode(mode, confirmRestart = false) {
     if (!_currentTarget) return;
-    const t = (_state.targets || []).find(x => x.id === _currentTarget);
-    if (t && t.connected) return; // already connected
-    const hasProvider = _state.providers && _state.providers.length > 0;
-    if (!hasProvider) { toast('Adicione um provedor primeiro.', 'error'); return; }
-    const res = await api('connect_target', _currentTarget);
-    if (res && res.ok) {
-      toast('Conectado ao AI Bridge!', 'success');
-      await refresh();
-      renderTarget(_currentTarget);
-    } else {
-      toast(res?.error || 'Falha ao conectar.', 'error');
+    if (mode === 'bridge' && (!_state.providers || !_state.providers.length)) {
+      toast('Adicione e salve um provedor antes de usar o AI Bridge.', 'error');
+      return;
     }
-  });
-
-  document.getElementById('pill-original')?.addEventListener('click', async () => {
-    if (!_currentTarget) return;
-    const t = (_state.targets || []).find(x => x.id === _currentTarget);
-    if (t && !t.connected) return; // already disconnected
-    const res = await api('disconnect_target', _currentTarget);
-    if (res && res.ok) {
-      toast('Desconectado — usando provedor original.', 'info');
+    const res = await api('activate_target', _currentTarget, mode, confirmRestart);
+    if (res?.confirm_restart) {
+      const accepted = window.confirm(
+        'Para aplicar esta troca, o Claude Desktop precisa reiniciar. Salve qualquer trabalho aberto antes de continuar. Deseja reiniciar agora?'
+      );
+      if (!accepted) return;
+      return activateClientMode(mode, true);
+    }
+    if (res?.ok) {
+      toast(res.message || (mode === 'bridge' ? 'Modo AI Bridge aplicado.' : 'Modo original restaurado.'), 'success');
       await refresh();
       renderTarget(_currentTarget);
     } else {
-      toast(res?.error || 'Falha ao desconectar.', 'error');
+      toast(res?.error || 'Não foi possível alternar o modo.', 'error');
+    }
+  }
+
+  document.getElementById('pill-bridge')?.addEventListener('click', () => activateClientMode('bridge'));
+  document.getElementById('pill-original')?.addEventListener('click', () => activateClientMode('original'));
+  document.getElementById('target-model-select')?.addEventListener('change', async (event) => {
+    const result = await api('set_active_model', event.target.value);
+    if (result?.ok) {
+      await refresh();
+      renderTarget(_currentTarget);
+      toast('Modelo padrão atualizado. Novas sessões do Codex usarão este modelo.', 'success');
+    } else {
+      toast(result?.error || 'Não foi possível alterar o modelo padrão.', 'error');
     }
   });
 
