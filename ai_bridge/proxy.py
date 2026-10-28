@@ -122,12 +122,112 @@ def models():
         for m in p.get('models', []):
             label = m.get('label', m['id'])
             data.append({
-                'id': f"{label} · {p['name']}",
+                'id': f"{p['name']}/{m['id']}",
                 'object': 'model',
                 'created': 0,
                 'owned_by': p['name'],
+                'display_name': f"{label} · {p['name']}",
             })
     return jsonify({'object': 'list', 'data': data})
+
+
+@app.route('/v1/codex-models')
+def codex_models():
+    """Return non-secret Codex model metadata for the loopback-only model picker.
+
+    Codex may fetch model_catalog_url without forwarding provider authorization.
+    The route exposes only configured model IDs/labels, never provider credentials.
+    """
+    catalog = []
+    for provider in cfg.get_providers():
+        for model in provider.get('models', []):
+            model_id = f"{provider['name']}/{model['id']}"
+            label = model.get('label', model['id'])
+            catalog.append({
+                'slug': model_id,
+                # Match Codex Desktop's local model_catalog_json schema.
+                'displayName': f"{label} · {provider['name']}",
+                'display_name': f"{label} · {provider['name']}",
+                'provider': 'ai_bridge',
+                'hidden': False,
+                'description': f"{label} via AI Bridge ({provider['name']}).",
+                'default_reasoning_level': 'medium',
+                'supported_reasoning_levels': [
+                    {'effort': 'low', 'description': 'Respostas mais rápidas.'},
+                    {'effort': 'medium', 'description': 'Equilíbrio entre velocidade e profundidade.'},
+                    {'effort': 'high', 'description': 'Maior profundidade para tarefas complexas.'},
+                ],
+                'shell_type': 'shell_command',
+                'visibility': 'list',
+                'supported_in_api': True,
+                'priority': len(catalog) + 1,
+                'additional_speed_tiers': [],
+                'service_tiers': [],
+                'default_service_tier': None,
+                'availability_nux': None,
+                'upgrade': None,
+                'support_verbosity': False,
+                'default_verbosity': None,
+                'apply_patch_tool_type': 'freeform',
+                'web_search_tool_type': 'text',
+                'truncation_policy': {'mode': 'tokens', 'limit': 10000},
+                'effective_context_window_percent': 95,
+                'experimental_supported_tools': [],
+                'input_modalities': ['text'],
+                'base_instructions': 'Modelo externo conectado pelo AI Bridge. Siga as instruções do usuário.',
+            })
+    return jsonify({'models': catalog})
+
+
+@app.route('/v1/responses', methods=['POST'])
+def responses():
+    """Responses API adapter used by Codex; upstream remains OpenAI Chat Completions."""
+    from . import responses_api
+    data = request.get_json(force=True, silent=True) or {}
+    model = str(data.get('model', ''))
+    provider = cfg.get_provider_for_model(model)
+    if provider is None:
+        return jsonify({
+            'error': {'message': f'Model not found in AI Bridge: {model}', 'type': 'invalid_request_error'}
+        }), 404
+    actual_model = cfg.get_model_id(model) or model
+    try:
+        chat_request = responses_api.to_chat_request(data, actual_model)
+    except ValueError as exc:
+        return jsonify({'error': {'message': str(exc), 'type': 'invalid_request_error'}}), 400
+
+    headers = {
+        'Authorization': f"Bearer {provider['api_key']}",
+        'Content-Type': 'application/json',
+        'User-Agent': 'ai-bridge/1.0.0',
+    }
+    url = provider['base_url'].rstrip('/') + '/chat/completions'
+    try:
+        # The adapter returns a valid Responses event sequence for streaming clients.
+        # Upstream inference completes first because the current translator is non-streaming.
+        resp = httpx.post(
+            url, json=chat_request, headers=headers,
+            timeout=httpx.Timeout(30.0, read=300.0),
+        )
+        if resp.status_code != 200:
+            return jsonify({
+                'error': {'message': resp.text[:500], 'type': 'upstream_error'}
+            }), resp.status_code
+        response_data = responses_api.from_chat_response(resp.json(), model)
+        if data.get('stream'):
+            return Response(
+                responses_api.as_sse(response_data),
+                content_type='text/event-stream',
+                headers={'Cache-Control': 'no-cache', 'X-Accel-Buffering': 'no'},
+            )
+        return jsonify(response_data)
+    except httpx.TimeoutException:
+        return jsonify({'error': {'message': 'Request timed out', 'type': 'server_error'}}), 529
+    except httpx.ConnectError:
+        return jsonify({'error': {'message': 'Connection failed to provider', 'type': 'server_error'}}), 502
+    except Exception as exc:
+        log.exception('Unexpected error (Responses API)')
+        return jsonify({'error': {'message': str(exc), 'type': 'server_error'}}), 500
 
 
 @app.route('/v1/chat/completions', methods=['POST'])
