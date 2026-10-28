@@ -1,12 +1,10 @@
 """
 Claude Desktop integration for AI Bridge.
-Writes ANTHROPIC_BASE_URL to the app config and Windows user env.
+Uses Claude Desktop's supported third-party inference gateway configuration on Windows.
+The app's account/session data is left untouched when switching modes.
 """
-import json
 import os
-import shutil
 import sys
-from datetime import datetime
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
@@ -51,8 +49,6 @@ def _resolve_cfg_dir() -> Path:
 
 
 _CFG_DIR = _resolve_cfg_dir()
-_CFG_FILE = _CFG_DIR / 'claude_desktop_config.json'
-_BRIDGE_KEY = '_ai_bridge'
 
 
 @dataclass
@@ -89,73 +85,6 @@ def _is_installed() -> bool:
             except (OSError, PermissionError):
                 pass
     return False
-
-
-def _load() -> dict:
-    if not _CFG_FILE.exists():
-        return {}
-    try:
-        return json.loads(_CFG_FILE.read_text('utf-8'))
-    except Exception:
-        return {}
-
-
-def _write(data: dict):
-    _CFG_DIR.mkdir(parents=True, exist_ok=True)
-    tmp = _CFG_DIR / f'.aib-{os.getpid()}.tmp'
-    tmp.write_text(json.dumps(data, indent=2, ensure_ascii=False), 'utf-8')
-    tmp.replace(_CFG_FILE)
-
-
-def _set_win_env(key: str, value: str):
-    if sys.platform != 'win32':
-        return
-    try:
-        import ctypes
-        import winreg
-        with winreg.OpenKey(winreg.HKEY_CURRENT_USER, 'Environment', 0,
-                            winreg.KEY_SET_VALUE) as reg:
-            winreg.SetValueEx(reg, key, 0, winreg.REG_EXPAND_SZ, value)
-        ctypes.windll.user32.SendMessageTimeoutW(0xFFFF, 0x001A, 0, 'Environment', 2, 5000, None)
-    except Exception:
-        pass
-
-
-def _del_win_env(key: str):
-    if sys.platform != 'win32':
-        return
-    try:
-        import ctypes
-        import winreg
-        with winreg.OpenKey(winreg.HKEY_CURRENT_USER, 'Environment', 0,
-                            winreg.KEY_SET_VALUE) as reg:
-            try:
-                winreg.DeleteValue(reg, key)
-            except FileNotFoundError:
-                pass
-        ctypes.windll.user32.SendMessageTimeoutW(0xFFFF, 0x001A, 0, 'Environment', 2, 5000, None)
-    except Exception:
-        pass
-
-
-def _set_mac_env(key: str, value: str):
-    if sys.platform != 'darwin':
-        return
-    try:
-        import subprocess
-        subprocess.run(['launchctl', 'setenv', key, value], timeout=5)
-    except Exception:
-        pass
-
-
-def _del_mac_env(key: str):
-    if sys.platform != 'darwin':
-        return
-    try:
-        import subprocess
-        subprocess.run(['launchctl', 'unsetenv', key], timeout=5)
-    except Exception:
-        pass
 
 
 def connect(port: int):
