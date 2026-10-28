@@ -307,7 +307,7 @@ class Bridge:
             if resp.status_code == 200:
                 data = resp.json()
                 ids = [m.get('id', '') for m in data.get('data', [])]
-                return {'ok': True, 'models': ids[:30]}
+                return {'ok': True, 'models': ids[:30], 'models_count': len(ids)}
             return {'ok': False, 'error': f'HTTP {resp.status_code}'}
         except httpx.ConnectError:
             return {'ok': False, 'error': 'Não foi possível conectar. Verifique a URL.'}
