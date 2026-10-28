@@ -331,6 +331,17 @@ function escHtml(str) {
 // ── Wire up static controls ───────────────────────────────────────────────────
 
 function wireControls() {
+  // Explicit size controls remain usable even when Windows hides the border of a frameless window.
+  const resizeBy = (delta) => {
+    const api = window.pywebview?.api;
+    if (!api?.resize_window) return;
+    const width = Math.max(520, Math.min(1600, Math.round(window.innerWidth + delta)));
+    const height = Math.max(500, Math.min(1200, Math.round(window.innerHeight + delta)));
+    api.resize_window(width, height).catch(() => toast('Não foi possível redimensionar a janela.', 'error'));
+  };
+  document.getElementById('btn-smaller')?.addEventListener('click', () => resizeBy(-80));
+  document.getElementById('btn-larger')?.addEventListener('click', () => resizeBy(80));
+
   // Frameless windows do not expose a native resize border; use this corner grip.
   const resizeGrip = document.getElementById('ab-resize-grip');
   if (resizeGrip) {
