@@ -7,9 +7,8 @@
   <rect width="520" height="48" rx="12" fill="#0c0e1b"/>
   <rect y="24" width="520" height="24" fill="#0c0e1b"/>
 
-  <!-- Logo hex -->
-  <polygon points="218,14 224,10 232,10 238,14 232,18 224,18" fill="#4f46e5"/>
-  <polygon points="220,14 224,12 230,12 234,14 230,16 224,16" fill="#6366f1"/>
+  <!-- AI Bridge brand asset -->
+  <image href="../ai_bridge/ui/assets/brands/ia-bridge.jpg" x="214" y="7" width="24" height="24" preserveAspectRatio="xMidYMid meet"/>
 
   <!-- App name -->
   <text x="242" y="29" font-family="'Segoe UI',system-ui,sans-serif" font-size="13" font-weight="600" fill="#f1f5f9">AI Bridge</text>
