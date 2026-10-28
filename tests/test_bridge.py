@@ -64,6 +64,7 @@ def test_activate_target_requires_restart_confirmation_before_mutating(monkeypat
         "id": "claude_desktop", "installed": True, "connected": False, "mode": "original"
     })
     monkeypatch.setattr(bridge_module.launchers, "is_running", lambda _target: True)
+    monkeypatch.setattr(app, "_preflight_active_provider", lambda: {"ok": True})
     monkeypatch.setattr(app, "connect_target", lambda _target: (_ for _ in ()).throw(AssertionError("must not mutate before confirmation")))
 
     result = app.activate_target("claude_desktop", "bridge")
@@ -79,6 +80,7 @@ def test_activate_target_configures_and_launches_after_confirmation(monkeypatch)
         "id": "claude_desktop", "installed": True, "connected": False, "mode": "original"
     })
     monkeypatch.setattr(bridge_module.launchers, "is_running", lambda _target: True)
+    monkeypatch.setattr(app, "_preflight_active_provider", lambda: {"ok": True})
     monkeypatch.setattr(app, "connect_target", lambda _target: {"ok": True, "port": 38771})
     monkeypatch.setattr(bridge_module.launchers, "launch_target", lambda target, restart=False: (
         calls.append((target, restart)) or {"launched": True, "restarted": True}
@@ -109,3 +111,21 @@ def test_activate_original_mode_restores_and_opens_codex(monkeypatch):
     assert result["ok"] is True
     assert result["mode"] == "original"
     assert calls == [("codex", False)]
+
+
+def test_activate_bridge_blocks_when_selected_provider_fails_preflight(monkeypatch):
+    from ai_bridge import bridge as bridge_module
+    app = bridge_module.Bridge()
+    monkeypatch.setattr(bridge_module, "_target_state", lambda _target: {
+        "id": "codex", "installed": True, "connected": False, "port": None
+    })
+    monkeypatch.setattr(app, "_preflight_active_provider", lambda: {
+        "ok": False, "error": "O provedor DeepSeek não passou no teste: HTTP 401"
+    })
+    monkeypatch.setattr(app, "connect_target", lambda _target: (_ for _ in ()).throw(AssertionError("must not change config")))
+    monkeypatch.setattr(bridge_module.launchers, "launch_target", lambda *args, **kwargs: (_ for _ in ()).throw(AssertionError("must not launch")))
+
+    result = app.activate_target("codex", "bridge")
+
+    assert result["ok"] is False
+    assert "HTTP 401" in result["error"]
