@@ -285,3 +285,12 @@ def test_edge_resize_zones_in_ui():
     for direction in ("n", "s", "e", "w", "ne", "nw", "se", "sw"):
         assert f'data-resize="{direction}"' in html
     assert "set_window_geometry" in js and "get_window_geometry" in js
+
+
+def test_chatgpt_web_preset_exists():
+    from ai_bridge.bridge import Bridge
+    catalog = Bridge().get_catalog()['catalog']
+    entry = next((c for c in catalog if c['id'] == 'chatgpt-web'), None)
+    assert entry is not None
+    assert entry['base_url'] == 'http://127.0.0.1:17841/v1'
+    assert entry['protocol'] == 'responses'

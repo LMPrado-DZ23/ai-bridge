@@ -186,6 +186,11 @@ CATALOG = [
     },
     # ── API key ──────────────────────────────────────────────────────────────
     {
+        'id': 'chatgpt-web', 'label': 'ChatGPT Web (codex-chatgpt-web)', 'kind': 'api_key',
+        'description': 'Sessão do ChatGPT Web via launcher codex-chatgpt-web em 127.0.0.1:17841 (use a conta logada nele).',
+        'base_url': 'http://127.0.0.1:17841/v1', 'protocol': 'responses', 'models': '',
+    },
+    {
         'id': 'deepseek', 'label': 'DeepSeek', 'kind': 'api_key',
         'description': 'API oficial da DeepSeek (chat completions ou responses).',
         'base_url': 'https://api.deepseek.com/v1', 'protocol': 'chat',
