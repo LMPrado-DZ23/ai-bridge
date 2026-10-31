@@ -655,10 +655,8 @@ class Bridge:
         provider = cfg.get_provider(name)
         if not provider or not oauth.is_oauth(provider):
             return {'ok': False, 'error': 'Provedor OAuth não encontrado'}
-        port = proxy.get_port() or cfg.get_port()
-        redirect_uri = f'http://127.0.0.1:{port}/oauth/callback'
         try:
-            begun = oauth_login.begin(provider, redirect_uri)
+            begun = oauth_login.begin(provider)
         except ValueError as exc:
             return {'ok': False, 'error': str(exc)}
         webbrowser.open(begun['url'])
@@ -667,7 +665,7 @@ class Bridge:
             'url': begun['url'],
             'state': begun['state'],
             'source': begun['source'],
-            'redirect_uri': redirect_uri,
+            'redirect_uri': begun.get('redirect_uri', ''),
             'hint': 'Conclua o login no navegador; o AI Bridge recebe o código no callback local.',
         }
 

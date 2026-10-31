@@ -26,8 +26,14 @@ forçado no provedor (`"protocol": "responses"`).
    expirou, renova com o mesmo endpoint/client_id que a CLI usa e **grava de volta**,
    então CLI e bridge continuam com uma sessão só.
 2. **Login próprio do AI Bridge** — se não existe sessão, a UI abre o navegador
-   (`oauth_login.begin`), o provedor redireciona para `http://127.0.0.1:<porta>/oauth/callback`
-   e o bridge troca o `code` por tokens (PKCE S256) e grava no mesmo arquivo que a CLI usa.
+   (`oauth_login.begin`), que sobe um **callback local na URL registrada do client** e troca o
+   `code` por tokens (PKCE S256), gravando no mesmo arquivo que a CLI usa:
+   - Codex: `http://localhost:1455/auth/callback` (a mesma do `codex login`)
+   - Claude: `http://localhost:54545/callback`
+   - Gemini: `http://localhost:8085/oauth2callback`
+   - qualquer outra: porta livre em `127.0.0.1` ou `auth.redirect_uri` do provedor
+   Depois de abrir o navegador, a UI faz *polling* de `oauth_status` a cada 2 s e atualiza
+   sozinha quando o callback chega. O único passo humano é escolher a conta na página do provedor.
 3. **Erro acionável** — sem sessão e sem login feito, o proxy responde `401` com a
    instrução exata (`codex login`, `claude`, `gemini`, `gh auth login`…).
 

@@ -105,16 +105,16 @@ def test_test_provider_reports_missing_session(bridge, monkeypatch):
 def test_get_oauth_login_url_opens_browser(bridge, monkeypatch):
     opened = {}
     monkeypatch.setattr(config, 'get_provider', lambda name: OAUTH_PROVIDER)
-    monkeypatch.setattr(bridge_mod.proxy, 'get_port', lambda: 38771)
-    monkeypatch.setattr(bridge_mod.oauth_login, 'begin', lambda provider, redirect: {
+    monkeypatch.setattr(bridge_mod.oauth_login, 'begin', lambda provider: {
         'url': 'https://auth.openai.com/oauth/authorize?x=1', 'state': 'st', 'source': 'codex',
+        'redirect_uri': 'http://localhost:1455/auth/callback',
     })
     monkeypatch.setattr(bridge_mod.webbrowser, 'open', lambda url: opened.update(url=url))
 
     res = bridge.get_oauth_login_url('Codex')
 
     assert res['ok'] is True
-    assert res['redirect_uri'] == 'http://127.0.0.1:38771/oauth/callback'
+    assert res['redirect_uri'] == 'http://localhost:1455/auth/callback'
     assert opened['url'].startswith('https://auth.openai.com/oauth/authorize')
 
 
@@ -153,7 +153,7 @@ def test_reauth_falls_back_to_browser_login(bridge, monkeypatch):
 
     monkeypatch.setattr(oauth, 'resolve', boom)
     monkeypatch.setattr(bridge_mod.proxy, 'get_port', lambda: 38771)
-    monkeypatch.setattr(bridge_mod.oauth_login, 'begin', lambda provider, redirect: {
+    monkeypatch.setattr(bridge_mod.oauth_login, 'begin', lambda provider: {
         'url': 'https://auth.openai.com/oauth/authorize?x=1', 'state': 's', 'source': 'codex',
     })
     monkeypatch.setattr(bridge_mod.webbrowser, 'open', lambda url: None)
@@ -210,3 +210,8 @@ def test_catalog_entries_can_carry_env_key(bridge):
     assert by_id['ollama-cloud']['env_key'] == 'OLLAMA_API_KEY'
     assert by_id['litellm']['env_key'] == 'LITELLM_MASTER_KEY'
     assert by_id['custom']['kind'] == 'custom'
+
+
+def test_codex_source_uses_registered_callback():
+    assert oauth.SOURCES['codex'].callback_url == 'http://localhost:1455/auth/callback'
+    assert oauth.SOURCES['claude'].callback_url.startswith('http://localhost:')

@@ -138,6 +138,7 @@ class OAuthSource:
     client_id = ''
     client_secret = ''
     scope = ''
+    callback_url = ''
     login_hint = ''
 
     # -- storage ---------------------------------------------------------
@@ -219,6 +220,7 @@ class CodexSource(OAuthSource):
     token_url = 'https://auth.openai.com/oauth/token'
     client_id = 'app_EMoamEEZ73f0CkXaXp7hrann'
     scope = 'openid profile email'
+    callback_url = 'http://localhost:1455/auth/callback'
     login_hint = 'Rode `codex login` no terminal e tente novamente.'
 
     def credentials_path(self) -> Path:
@@ -287,6 +289,7 @@ class ClaudeSource(OAuthSource):
     token_url = 'https://console.anthropic.com/v1/oauth/token'
     client_id = '9d1c250a-e61b-44d9-88ed-5944d1962f5e'
     scope = 'user:inference user:profile'
+    callback_url = 'http://localhost:54545/callback'
     login_hint = 'Abra o Claude Code e faça login (`claude`), depois tente novamente.'
 
     def credentials_path(self) -> Path:
@@ -350,6 +353,7 @@ class GeminiSource(OAuthSource):
     default_base_url = 'https://generativelanguage.googleapis.com/v1beta/openai'
     default_protocol = 'chat'
     token_url = 'https://oauth2.googleapis.com/token'
+    callback_url = 'http://localhost:8085/oauth2callback'
     client_id = ''          # configure em auth.client_id (ou env) — ver docs/OAUTH.md
     client_secret = ''
     scope = ('https://www.googleapis.com/auth/cloud-platform '

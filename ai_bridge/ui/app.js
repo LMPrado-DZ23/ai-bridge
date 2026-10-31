@@ -289,8 +289,10 @@ function renderProviders() {
       btn.disabled = true;
       const res = await api('get_oauth_login_url', btn.dataset.login);
       btn.disabled = false;
-      if (res && res.ok) toast('Login aberto no navegador. Conclua e volte ao AI Bridge.', 'success');
-      else toast(res?.error || 'Não foi possível iniciar o login.', 'error');
+      if (res && res.ok) {
+        toast('Login aberto no navegador. Conclua e volte ao AI Bridge.', 'success');
+        pollOauth(btn.dataset.login);
+      } else toast(res?.error || 'Não foi possível iniciar o login.', 'error');
     });
   });
 
@@ -337,6 +339,21 @@ function renderProviders() {
       });
     });
   });
+}
+
+// Aguarda o callback OAuth e atualiza a UI sozinho quando a sessão chegar.
+async function pollOauth(name, tries = 90) {
+  for (let i = 0; i < tries; i++) {
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    const st = await api('oauth_status', name);
+    if (st && st.ok && st.auth && st.auth.connected) {
+      toast(`Login concluído — ${name} conectado.`, 'success');
+      await refresh();
+      renderProviders();
+      if (_currentScreen === 'add') syncAuthUi({ kind: 'oauth', source: 'codex', status: st.auth });
+      return;
+    }
+  }
 }
 
 // ── Wizard (Adicionar provedor em 2 passos) ───────────────────────────────────
@@ -768,6 +785,7 @@ function wireControls() {
     if (res && res.ok) {
       if (statusEl) statusEl.textContent = 'Login aberto no navegador — conclua para liberar o provedor.';
       toast('Login aberto no navegador.', 'success');
+      pollOauth(providerName);
     } else {
       toast(res?.error || 'Não foi possível iniciar o login OAuth.', 'error');
     }
