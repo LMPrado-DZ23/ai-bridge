@@ -164,12 +164,15 @@ def get_port() -> int:
 
 
 def add_provider(name: str, base_url: str, api_key: str, models: list,
-                 auth: Optional[dict] = None, protocol: Optional[str] = None):
+                 auth: Optional[dict] = None, protocol: Optional[str] = None,
+                 env_key: Optional[str] = None):
     """Create/update a provider.
 
     ``auth`` (e.g. ``{'kind': 'oauth', 'source': 'codex'}``) turns the provider
     into an OAuth one; in that case no API key is stored. ``protocol`` forces
     the upstream wire format (``chat``, ``responses`` or ``anthropic``).
+    ``env_key`` names an environment variable holding the key (DSH style), used
+    when no key is kept in the keyring.
     """
     if auth and str(auth.get('kind', '')).lower() == 'oauth':
         _delete_key(name)
@@ -190,6 +193,8 @@ def add_provider(name: str, base_url: str, api_key: str, models: list,
         entry['auth'] = dict(auth)
     if protocol:
         entry['protocol'] = protocol
+    if env_key:
+        entry['env_key'] = env_key
     providers.append(entry)
     data['providers'] = providers
     save(data)

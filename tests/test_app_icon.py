@@ -61,3 +61,15 @@ def test_add_screen_has_provider_catalog_and_protocol():
     assert "api('get_catalog')" in js
     assert "applyCatalogEntry" in js
     assert "protocol || null" in js
+
+def test_add_screen_has_dsh_import_button():
+    js = (ROOT / "ai_bridge" / "ui" / "app.js").read_text(encoding="utf-8")
+    html = (ROOT / "ai_bridge" / "ui" / "index.html").read_text(encoding="utf-8")
+    assert 'id="btn-import-dsh"' in html
+    assert "api('import_dsh_providers')" in js
+
+def test_form_has_env_key_field_and_submits_it():
+    js = (ROOT / "ai_bridge" / "ui" / "app.js").read_text(encoding="utf-8")
+    html = (ROOT / "ai_bridge" / "ui" / "index.html").read_text(encoding="utf-8")
+    assert 'id="f-env-key"' in html
+    assert "envKey || null" in js

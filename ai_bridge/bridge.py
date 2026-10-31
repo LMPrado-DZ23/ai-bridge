@@ -199,6 +199,42 @@ CATALOG = [
         'base_url': 'http://localhost:11434/v1', 'protocol': 'chat',
         'models': 'qwen3:8b|Qwen3 8B\nllama3.2|Llama 3.2',
     },
+    {
+        'id': 'ollama-cloud', 'label': 'Ollama Cloud', 'kind': 'api_key', 'env_key': 'OLLAMA_API_KEY',
+        'description': 'Modelos hospedados em ollama.com (GLM, Kimi, GPT-OSS…).',
+        'base_url': 'https://ollama.com/v1', 'protocol': 'chat',
+        'models': 'glm-5.2|GLM 5.2\ndeepseek-v4.1-flash|DeepSeek V4.1 Flash\nkimi-k2.6|Kimi K2.6\ngpt-oss:120b|GPT-OSS 120B',
+    },
+    {
+        'id': 'mimo', 'label': 'Xiaomi MiMo', 'kind': 'api_key', 'env_key': 'MIMO_API_KEY',
+        'description': 'API regional da Xiaomi (token-plan-sgp). Chave começa com "tp-".',
+        'base_url': 'https://token-plan-sgp.xiaomimimo.com/v1', 'protocol': 'chat',
+        'models': 'mimo-v2.6-pro|MiMo v2.6 Pro\nmimo-v2.6-flash|MiMo v2.6 Flash',
+    },
+    {
+        'id': 'moonshot', 'label': 'Moonshot / Kimi', 'kind': 'api_key',
+        'description': 'Kimi K2/K3 pela API da Moonshot.',
+        'base_url': 'https://api.moonshot.cn/v1', 'protocol': 'chat',
+        'models': 'kimi-k2.6|Kimi K2.6\nkimi-k3|Kimi K3',
+    },
+    {
+        'id': 'zhipu', 'label': 'Zhipu GLM', 'kind': 'api_key',
+        'description': 'Família GLM da Zhipu AI.',
+        'base_url': 'https://open.bigmodel.cn/api/paas/v4', 'protocol': 'chat',
+        'models': 'glm-5.2|GLM 5.2\nglm-5.1|GLM 5.1',
+    },
+    {
+        'id': 'xai', 'label': 'xAI Grok', 'kind': 'api_key',
+        'description': 'Modelos Grok pela API da xAI.',
+        'base_url': 'https://api.x.ai/v1', 'protocol': 'chat',
+        'models': 'grok-4.7|Grok 4.7\ngrok-4.6|Grok 4.6',
+    },
+    {
+        'id': 'litellm', 'label': 'LiteLLM (gateway local)', 'kind': 'api_key', 'env_key': 'LITELLM_MASTER_KEY',
+        'description': 'Seu gateway LiteLLM em 127.0.0.1:4000 — um endpoint para todos os modelos.',
+        'base_url': 'http://127.0.0.1:4000/v1', 'protocol': 'chat',
+        'models': 'deepseek-flash|DeepSeek Flash (LiteLLM)\ngpt-5.5|GPT-5.5 (LiteLLM)\nclaude-sonnet-5-5|Claude Sonnet 5.5 (LiteLLM)',
+    },
     # ── Qualquer outra IA ────────────────────────────────────────────────────
     {
         'id': 'custom', 'label': 'API personalizada', 'kind': 'custom',
@@ -384,6 +420,7 @@ class Bridge:
                         'base_url': p['base_url'],
                         'models_raw': models_raw,
                         'has_key': bool(stored_key),
+                        'env_key': p.get('env_key', ''),
                         'auth': p.get('auth') or {'kind': 'api_key'},
                         'auth_status': oauth.status(p),
                         'protocol': p.get('protocol', ''),
@@ -394,7 +431,7 @@ class Bridge:
             return {'ok': False, 'error': str(e)}
 
     def add_provider(self, name: str, base_url: str, api_key: str, models_raw: str,
-                     auth: dict = None, protocol: str = '') -> dict:
+                     auth: dict = None, protocol: str = '', env_key: str = '') -> dict:
         with self._lock:
             try:
                 name = name.strip()
@@ -422,13 +459,15 @@ class Bridge:
                     if not _is_valid_url(base_url):
                         return {'ok': False, 'error': 'URL inválida. Use o formato https://api.example.com/v1'}
 
+                    env_key = (env_key or '').strip()
+
                     # When editing, a blank key means "keep the existing key"
-                    if not api_key:
+                    if not api_key and not env_key:
                         existing = next((p for p in cfg.get_providers() if p['name'] == name), None)
                         if existing:
                             api_key = existing.get('api_key', '')
-                    if not api_key:
-                        return {'ok': False, 'error': 'Chave de API é obrigatória'}
+                    if not api_key and not env_key:
+                        return {'ok': False, 'error': 'Chave de API é obrigatória (ou informe a variável de ambiente).'}
 
                 models = []
                 for line in models_raw.strip().splitlines():
@@ -446,7 +485,8 @@ class Bridge:
 
                 cfg.add_provider(name, base_url, api_key, models,
                                  auth=auth if is_oauth else None,
-                                 protocol=protocol or None)
+                                 protocol=protocol or None,
+                                 env_key=(env_key or '').strip() or None)
                 self._sync_connected_targets()
                 restart_required_targets = []
                 if claude_code.is_connected():
@@ -760,3 +800,44 @@ class Bridge:
     def get_catalog(self) -> dict:
         """Menu de provedores para a UI: assinaturas OAuth, API keys e custom."""
         return {'ok': True, 'catalog': CATALOG}
+
+    # ── Importação do DeepSeek Harness ───────────────────────────────────────
+
+    def get_dsh_providers(self) -> dict:
+        """Lista os provedores configurados no perfil do DeepSeek Harness."""
+        try:
+            from . import dsh_import
+            found = dsh_import.read_providers()
+        except Exception as exc:  # noqa: BLE001 - surfaced in the UI
+            return {'ok': False, 'error': str(exc)}
+        existing = {provider['name'] for provider in cfg.get_providers()}
+        for item in found:
+            item['env_available'] = dsh_import.env_available(item['env_key'])
+            item['already'] = item['name'] in existing
+            item['model_count'] = len(item['models'])
+        return {'ok': True, 'providers': found}
+
+    def import_dsh_providers(self, names: list = None) -> dict:
+        """Cria provedores no AI Bridge a partir do perfil do DeepSeek Harness.
+
+        Usa ``apiKeyEnv`` como ``env_key`` (a chave continua só no ambiente).
+        """
+        data = self.get_dsh_providers()
+        if not data.get('ok'):
+            return data
+        wanted = set(names or [])
+        imported, skipped = [], []
+        for item in data['providers']:
+            if wanted and item['name'] not in wanted:
+                continue
+            if item['already']:
+                skipped.append({'name': item['name'], 'reason': 'já existe no AI Bridge'})
+                continue
+            if not item['models']:
+                skipped.append({'name': item['name'], 'reason': 'sem modelos no DSH'})
+                continue
+            cfg.add_provider(item['name'], item['base_url'], '', item['models'],
+                             env_key=item['env_key'] or None)
+            imported.append(item['name'])
+        self._sync_connected_targets()
+        return {'ok': True, 'imported': imported, 'skipped': skipped}

@@ -811,9 +811,12 @@ def _load_or_refresh(provider: dict, *, force: bool = False) -> Token:
 def resolve(provider: dict, *, protocol: str = '', force_refresh: bool = False) -> ResolvedAuth:
     """Return headers/base_url/protocol for one provider (OAuth or API key)."""
     if not is_oauth(provider):
+        key = str(provider.get('api_key') or '')
+        if not key and provider.get('env_key'):
+            key = os.environ.get(str(provider['env_key']), '')
         return ResolvedAuth(
             headers={
-                'Authorization': f"Bearer {provider.get('api_key', '')}",
+                'Authorization': f'Bearer {key}',
                 'Content-Type': 'application/json',
                 'User-Agent': USER_AGENT,
             },
@@ -847,7 +850,11 @@ def resolve(provider: dict, *, protocol: str = '', force_refresh: bool = False) 
 def status(provider: dict) -> dict:
     """Non-secret status for the UI (never returns the token)."""
     if not is_oauth(provider):
-        return {'kind': 'api_key', 'has_key': bool(provider.get('api_key'))}
+        has_key = bool(provider.get('api_key'))
+        if not has_key and provider.get('env_key'):
+            has_key = bool(os.environ.get(str(provider['env_key']), ''))
+        return {'kind': 'api_key', 'has_key': has_key,
+                'env_key': provider.get('env_key', '')}
     auth = provider.get('auth') or {}
     source_name = str(auth.get('source', ''))
     try:

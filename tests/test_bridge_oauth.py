@@ -191,3 +191,22 @@ def test_catalog_lists_oauth_api_and_custom(bridge):
     assert by_id['anthropic']['protocol'] == 'anthropic'
     assert by_id['custom']['kind'] == 'custom'
     assert all(entry['label'] and entry['description'] for entry in catalog)
+
+def test_add_provider_stores_env_key(bridge, monkeypatch):
+    captured = {}
+    monkeypatch.setattr(config, 'add_provider',
+                        lambda *args, **kwargs: captured.update(args=args, kwargs=kwargs))
+
+    res = bridge.add_provider('Mimo', 'https://x/v1', '', 'm|M',
+                              None, 'chat', 'MIMO_API_KEY')
+
+    assert res['ok'] is True
+    assert captured['kwargs']['env_key'] == 'MIMO_API_KEY'
+
+
+def test_catalog_entries_can_carry_env_key(bridge):
+    by_id = {entry['id']: entry for entry in bridge.get_catalog()['catalog']}
+    assert by_id['mimo']['env_key'] == 'MIMO_API_KEY'
+    assert by_id['ollama-cloud']['env_key'] == 'OLLAMA_API_KEY'
+    assert by_id['litellm']['env_key'] == 'LITELLM_MASTER_KEY'
+    assert by_id['custom']['kind'] == 'custom'

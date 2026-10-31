@@ -251,7 +251,13 @@
 
       <!-- Preset pills -->
       <div class="px-5 pt-3 pb-2 flex-shrink-0">
-        <p class="text-[10px] font-semibold tracking-widest text-white/30 uppercase mb-2">Escolha o provedor</p>
+        <div class="flex items-center justify-between mb-2">
+          <p class="text-[10px] font-semibold tracking-widest text-white/30 uppercase">Escolha o provedor</p>
+          <button id="btn-import-dsh" type="button" class="btn btn-ghost btn-sm"
+            title="Importar provedores e modelos do perfil do DeepSeek Harness">
+            Importar do DeepSeek Harness
+          </button>
+        </div>
         <input id="catalog-search" class="ab-input mb-2" placeholder="Buscar: codex, claude, gemini, deepseek…"
           autocomplete="off" spellcheck="false" />
         <div id="provider-catalog" class="ab-catalog">
@@ -339,6 +345,10 @@
               </svg>
             </button>
           </div>
+          <input id="f-env-key" name="env_key" type="text"
+            class="ab-input mt-2" placeholder="ou use uma variável de ambiente da chave (ex: OLLAMA_API_KEY)"
+            autocomplete="off" spellcheck="false" />
+          <p class="ab-label-hint mt-1">Com variável de ambiente, a chave nunca é gravada no AI Bridge.</p>
         </div>
 
         <div>

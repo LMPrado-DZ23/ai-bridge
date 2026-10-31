@@ -322,3 +322,19 @@ def test_oauth_source_without_default_base_url_requires_it(tmp_path, monkeypatch
         oauth.resolve(provider)
 
     assert 'base_url' in str(excinfo.value)
+
+def test_api_key_provider_can_use_env_var(monkeypatch):
+    monkeypatch.setenv('AI_BRIDGE_ENV_KEY_TEST', 'env-secret')
+    provider = {'name': 'Env', 'base_url': 'https://api.example.com/v1', 'api_key': '',
+                'env_key': 'AI_BRIDGE_ENV_KEY_TEST', 'models': []}
+    auth = oauth.resolve(provider)
+    assert auth.headers['Authorization'] == 'Bearer env-secret'
+    assert oauth.status(provider)['has_key'] is True
+
+
+def test_api_key_provider_env_var_missing(monkeypatch):
+    monkeypatch.delenv('AI_BRIDGE_ENV_KEY_MISSING', raising=False)
+    provider = {'name': 'Env', 'base_url': 'https://api.example.com/v1', 'api_key': '',
+                'env_key': 'AI_BRIDGE_ENV_KEY_MISSING', 'models': []}
+    assert oauth.resolve(provider).headers['Authorization'] == 'Bearer '
+    assert oauth.status(provider)['has_key'] is False

@@ -5,3 +5,4 @@ pystray>=0.19.5
 pillow>=10.4.0
 pyinstaller>=6.0
 keyring>=24.0
+pyyaml>=6.0

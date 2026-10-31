@@ -341,6 +341,8 @@ async function renderAdd(editName) {
       ).join('\n');
       const fProtocol = document.getElementById('f-protocol');
       if (fProtocol) fProtocol.value = detail.protocol || '';
+      const fEnvKey = document.getElementById('f-env-key');
+      if (fEnvKey) fEnvKey.value = detail.env_key || '';
       syncAuthUi({ ...(detail.auth || { kind: 'api_key' }), status: detail.auth_status });
     }
   }
@@ -385,6 +387,8 @@ function applyCatalogEntry(entry) {
   if (url) url.value = entry.base_url || '';
   if (models) models.value = entry.models || '';
   if (protocol) protocol.value = entry.protocol || '';
+  const envKey = document.getElementById('f-env-key');
+  if (envKey) envKey.value = entry.env_key || '';
   if (name) name.focus();
 }
 
@@ -592,6 +596,27 @@ function wireControls() {
     document.getElementById('icon-eye-off')?.classList.toggle('hidden', !isHidden);
   });
 
+  // Importar provedores/modelos do perfil do DeepSeek Harness
+  document.getElementById('btn-import-dsh')?.addEventListener('click', async () => {
+    const btn = document.getElementById('btn-import-dsh');
+    if (btn) btn.disabled = true;
+    const res = await api('import_dsh_providers');
+    if (btn) btn.disabled = false;
+    if (res && res.ok) {
+      const names = res.imported || [];
+      if (names.length) {
+        toast(`${names.length} provedor(es) importado(s) do DeepSeek Harness: ${names.join(', ')}.`, 'success');
+        await refresh();
+        go('providers');
+      } else {
+        const why = (res.skipped || []).map(s => `${s.name} (${s.reason})`).join(', ');
+        toast(why ? `Nada novo para importar — ${why}.` : 'Nenhum provedor novo no DSH.', 'info');
+      }
+    } else {
+      toast(res?.error || 'Falha ao importar do DeepSeek Harness.', 'error');
+    }
+  });
+
   // Test connection
   document.getElementById('btn-test')?.addEventListener('click', async () => {
     const url = document.getElementById('f-url')?.value?.trim();
@@ -649,7 +674,8 @@ function wireControls() {
     if (saveBtn) saveBtn.disabled = true;
 
     const protocol = document.getElementById('f-protocol')?.value || '';
-    const res = await api('add_provider', name, url || '', key || '', models, auth, protocol || null);
+    const envKey = document.getElementById('f-env-key')?.value?.trim();
+    const res = await api('add_provider', name, url || '', key || '', models, auth, protocol || null, envKey || null);
 
     if (saveBtn) saveBtn.disabled = false;
 
@@ -691,4 +717,5 @@ if (document.readyState === 'loading') {
   window.addEventListener('pywebviewready', boot, { once: true });
   setTimeout(() => { if (!window.pywebview) boot(); }, 300);
 }
+
 
