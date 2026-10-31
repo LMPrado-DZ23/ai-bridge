@@ -30,24 +30,33 @@ _METRICS = {
     'errors': 0,
     'latency_total_ms': 0.0,
     'by_path': {},
+    'by_provider': {},
+    'by_model': {},
     'events': [],
     'started_at': time.time(),
 }
 
 
-def _record_request(path: str, method: str, status: int, duration_ms: float):
+def _record_request(path: str, method: str, status: int, duration_ms: float,
+                    provider: str = '', model: str = ''):
     with _METRICS_LOCK:
         _METRICS['requests'] += 1
         if status >= 400:
             _METRICS['errors'] += 1
         _METRICS['latency_total_ms'] += duration_ms
         _METRICS['by_path'][path] = _METRICS['by_path'].get(path, 0) + 1
+        if provider:
+            _METRICS['by_provider'][provider] = _METRICS['by_provider'].get(provider, 0) + 1
+        if model:
+            _METRICS['by_model'][model] = _METRICS['by_model'].get(model, 0) + 1
         _METRICS['events'].append({
             'ts': time.time(),
             'path': path,
             'method': method,
             'status': status,
             'ms': round(duration_ms, 1),
+            'provider': provider,
+            'model': model,
         })
         del _METRICS['events'][:-_EVENT_LIMIT]
 
@@ -69,8 +78,16 @@ def _metrics_before():
 def _metrics_after(response):
     started = getattr(g, '_ab_started', None)
     if started is not None and request.path != '/health':
+        provider, model = '', ''
+        try:
+            if request.method == 'POST' and request.is_json:
+                payload = request.get_json(silent=True) or {}
+                model = str(payload.get('model') or '')
+                provider = model.split('/', 1)[0] if '/' in model else (model or '')
+        except Exception:
+            provider, model = '', ''
         _record_request(request.path, request.method, response.status_code,
-                        (time.perf_counter() - started) * 1000)
+                        (time.perf_counter() - started) * 1000, provider, model)
     return response
 
 
@@ -85,6 +102,8 @@ def get_metrics() -> dict:
             'avg_ms': round(_METRICS['latency_total_ms'] / requests_total, 1) if requests_total else 0.0,
             'uptime_s': int(time.time() - _METRICS['started_at']),
             'by_path': dict(_METRICS['by_path']),
+            'by_provider': dict(_METRICS['by_provider']),
+            'by_model': dict(_METRICS['by_model']),
             'events': list(reversed(_METRICS['events'])),
         }
 
@@ -92,7 +111,8 @@ def get_metrics() -> dict:
 def reset_metrics():
     with _METRICS_LOCK:
         _METRICS.update({'requests': 0, 'errors': 0, 'latency_total_ms': 0.0,
-                         'by_path': {}, 'events': [], 'started_at': time.time()})
+                         'by_path': {}, 'by_provider': {}, 'by_model': {},
+                         'events': [], 'started_at': time.time()})
 
 
 # ─── Upstream helpers ──────────────────────────────────────────────────────────

@@ -387,6 +387,7 @@ async function renderMonitor() {
     stats.innerHTML =
       `<div class="ab-stat"><span>${res.requests ?? 0}</span><small>requisições</small></div>` +
       `<div class="ab-stat"><span>${res.errors ?? 0}</span><small>erros</small></div>` +
+      `<div class="ab-stat"><span>${(Object.entries(res.by_provider || {}).sort((a, b) => b[1] - a[1])[0] || ['—'])[0]}</span><small>top provedor</small></div>` +
       `<div class="ab-stat"><span>${res.avg_ms ?? 0} ms</span><small>latência média</small></div>` +
       `<div class="ab-stat"><span>${formatUptime(res.uptime_s)}</span><small>ativo</small></div>` +
       `<div class="ab-stat"><span>${res.running ? 'on' : 'off'}</span><small>proxy${res.port ? ' · ' + res.port : ''}</small></div>`;

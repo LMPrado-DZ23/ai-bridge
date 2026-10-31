@@ -58,3 +58,29 @@ def test_monitor_ui_is_wired():
     assert 'id="monitor-stats"' in html
     assert 'id="monitor-events"' in html
     assert 'renderMonitor' in js and "api('get_metrics')" in js
+
+
+def test_metrics_record_provider_and_model():
+    proxy.reset_metrics()
+    client = proxy.app.test_client()
+    client.post('/v1/chat/completions', json={'model': 'DeepSeek/deepseek-v4-pro', 'messages': []})
+    data = proxy.get_metrics()
+    assert data['by_provider'].get('DeepSeek') == 1
+    assert data['by_model'].get('DeepSeek/deepseek-v4-pro') == 1
+    event = data['events'][0]
+    assert event['provider'] == 'DeepSeek'
+    assert event['model'] == 'DeepSeek/deepseek-v4-pro'
+
+
+def test_metrics_without_model_do_not_break():
+    proxy.reset_metrics()
+    client = proxy.app.test_client()
+    client.get('/v1/models')
+    data = proxy.get_metrics()
+    assert data['by_provider'] == {}
+
+
+def test_monitor_shows_top_provider():
+    root = Path(__file__).resolve().parents[1]
+    js = (root / 'ai_bridge' / 'ui' / 'app.js').read_text(encoding='utf-8')
+    assert 'by_provider' in js and 'top provedor' in js
