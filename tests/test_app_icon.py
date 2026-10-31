@@ -83,3 +83,16 @@ def test_add_screen_has_model_discovery_and_free_filter():
     assert "api('fetch_models'" in js
     assert "selectedModelLines()" in js
     assert 'grátis' in js
+
+def test_add_screen_is_a_two_step_wizard():
+    js = (ROOT / "ai_bridge" / "ui" / "app.js").read_text(encoding="utf-8")
+    html = (ROOT / "ai_bridge" / "ui" / "index.html").read_text(encoding="utf-8")
+    assert 'id="wizard-layout"' in html
+    assert 'class="ab-form-layout is-step1"' in html
+    assert 'data-step="1"' in html and 'data-step="2"' in html
+    assert 'id="selected-summary"' in html
+    assert 'id="btn-change-provider"' in html
+    assert 'id="model-preview"' in html
+    assert 'function showAddStep(' in js
+    assert 'function renderModelPreview(' in js
+    assert 'function renderSummary(' in js

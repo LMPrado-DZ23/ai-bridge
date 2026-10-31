@@ -339,6 +339,64 @@ function renderProviders() {
   });
 }
 
+// ── Wizard (Adicionar provedor em 2 passos) ───────────────────────────────────
+
+let _addStep = 1;
+let _selectedEntry = null;
+
+function showAddStep(step) {
+  _addStep = step;
+  const layout = document.getElementById('wizard-layout');
+  if (layout) {
+    layout.classList.toggle('is-step1', step === 1);
+    layout.classList.toggle('is-step2', step === 2);
+  }
+  document.querySelectorAll('.ab-step').forEach(el => {
+    const n = Number(el.dataset.step);
+    el.classList.toggle('is-active', n === step);
+    el.classList.toggle('is-done', n < step);
+  });
+  const main = document.querySelector('.ab-main');
+  if (main) main.scrollTop = 0;
+  if (step === 2) renderModelPreview();
+}
+
+function renderSummary(entry) {
+  const nameEl = document.getElementById('selected-name');
+  const metaEl = document.getElementById('selected-meta');
+  const iconEl = document.getElementById('selected-icon');
+  if (!entry) {
+    if (nameEl) nameEl.textContent = 'Nenhum provedor selecionado';
+    if (metaEl) metaEl.textContent = 'Volte ao passo 1 para escolher.';
+    if (iconEl) iconEl.textContent = '•';
+    return;
+  }
+  const label = entry.label || entry.name || entry.id || 'Provedor';
+  const kind = entry.kind === 'oauth' ? `OAuth · ${entry.source || ''}` :
+               entry.kind === 'custom' ? 'API personalizada' : 'API key';
+  const bits = [kind, entry.base_url || (entry.kind === 'oauth' ? 'sessão da CLI' : ''),
+                entry.protocol ? `protocolo ${entry.protocol}` : ''].filter(Boolean);
+  if (nameEl) nameEl.textContent = label;
+  if (metaEl) metaEl.textContent = bits.join(' · ');
+  if (iconEl) iconEl.textContent = label.trim().charAt(0).toUpperCase();
+}
+
+function renderModelPreview() {
+  const chips = document.getElementById('model-preview-chips');
+  if (!chips) return;
+  let ids = selectedModelLines()
+    ? selectedModelLines().split('\n').map(line => line.split('|')[0].trim())
+    : (document.getElementById('f-models')?.value || '').split('\n').map(l => l.trim()).filter(Boolean);
+  ids = ids.filter(Boolean);
+  if (!ids.length) {
+    chips.innerHTML = '<span class="ab-hint">Nenhum modelo ainda — use “Buscar modelos” ou preencha a lista.</span>';
+    return;
+  }
+  const shown = ids.slice(0, 8);
+  chips.innerHTML = shown.map(id => `<span class="ab-chip">${escHtml(id)}</span>`).join('') +
+    (ids.length > shown.length ? `<span class="ab-chip ab-chip--more">+${ids.length - shown.length}</span>` : '');
+}
+
 // ── Render: Add/Edit provider ─────────────────────────────────────────────────
 
 async function renderAdd(editName) {
@@ -352,7 +410,10 @@ async function renderAdd(editName) {
   if (form) form.reset();
   const testResult = document.getElementById('test-result');
   if (testResult) { testResult.hidden = true; testResult.textContent = ''; }
+  _selectedEntry = null;
+  renderSummary(null);
   syncAuthUi(null);
+  showAddStep(editName ? 2 : 1);
 
   // Catálogo de provedores (menu "Escolha o provedor")
   const catalogEl = document.getElementById('provider-catalog');
@@ -414,6 +475,14 @@ async function renderAdd(editName) {
       if (fProtocol) fProtocol.value = detail.protocol || '';
       const fEnvKey = document.getElementById('f-env-key');
       if (fEnvKey) fEnvKey.value = detail.env_key || '';
+      renderSummary({
+        label: detail.name,
+        kind: (detail.auth || {}).kind === 'oauth' ? 'oauth' : 'api_key',
+        source: (detail.auth || {}).source || '',
+        base_url: detail.base_url || '',
+        protocol: detail.protocol || '',
+      });
+      renderModelPreview();
       syncAuthUi({ ...(detail.auth || { kind: 'api_key' }), status: detail.auth_status });
     }
   }
@@ -464,6 +533,10 @@ function applyCatalogEntry(entry) {
   renderModelPicker();
   const status = document.getElementById('models-status');
   if (status) status.textContent = '';
+  _selectedEntry = entry;
+  renderSummary(entry);
+  showAddStep(2);
+  renderModelPreview();
   if (name) name.focus();
 }
 
@@ -608,9 +681,14 @@ function wireControls() {
   document.getElementById('btn-back-providers')?.addEventListener('click', () => go('home'));
   document.getElementById('btn-add-from-providers')?.addEventListener('click', () => go('add'));
 
+  // Wizard: trocar provedor (volta ao passo 1) e prévia dos modelos
+  document.getElementById('btn-change-provider')?.addEventListener('click', () => showAddStep(1));
+  document.getElementById('f-models')?.addEventListener('input', renderModelPreview);
+  document.getElementById('model-picker')?.addEventListener('change', renderModelPreview);
+
   // Add/Edit back + cancel
   document.getElementById('btn-back-add')?.addEventListener('click', () =>
-    go(_editingProvider ? 'providers' : 'providers'));
+    (_addStep === 2 && !_editingProvider) ? showAddStep(1) : go('providers'));
   document.getElementById('btn-cancel')?.addEventListener('click', () =>
     go('providers'));
 

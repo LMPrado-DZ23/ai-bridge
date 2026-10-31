@@ -181,12 +181,17 @@
               </button>
               <div>
                 <h1 id="add-screen-title" class="ab-page-title">Adicionar provedor</h1>
-                <p class="ab-page-sub">Escolha um provedor à esquerda ou personalize a API à direita</p>
+                <p class="ab-page-sub">Escolha o provedor e depois confirme a autenticação</p>
               </div>
             </div>
           </div>
 
-          <div class="ab-form-layout">
+          <div class="ab-steps" id="wizard-steps">
+            <span class="ab-step is-active" data-step="1"><b>1</b> Provedor</span>
+            <span class="ab-step" data-step="2"><b>2</b> Autenticação</span>
+          </div>
+
+          <div class="ab-form-layout is-step1" id="wizard-layout">
 
             <!-- Catalog pane -->
             <div class="ab-pane ab-pane--catalog">
@@ -204,6 +209,15 @@
 
             <!-- Form pane -->
             <form id="add-form" class="ab-pane ab-pane--form" novalidate autocomplete="off">
+
+              <div class="ab-selected" id="selected-summary">
+                <div class="ab-selected__icon" id="selected-icon">•</div>
+                <div class="ab-selected__body">
+                  <div class="ab-selected__name" id="selected-name">Nenhum provedor selecionado</div>
+                  <div class="ab-selected__meta" id="selected-meta">Volte ao passo 1 para escolher.</div>
+                </div>
+                <button id="btn-change-provider" type="button" class="ab-btn ab-btn--ghost ab-btn--sm">Trocar</button>
+              </div>
 
               <div class="ab-grid-2">
                 <div class="ab-field">
@@ -305,6 +319,11 @@
                 </button>
                 <span id="test-result" class="ab-hint"></span>
                 <button id="btn-import-models" type="button" class="ab-btn ab-btn--ghost ab-btn--sm" hidden>Importar modelos encontrados</button>
+              </div>
+
+              <div class="ab-preview" id="model-preview">
+                <span class="ab-preview__label">Prévia dos modelos</span>
+                <div class="ab-preview__chips" id="model-preview-chips"></div>
               </div>
 
               <div class="ab-form-actions">
