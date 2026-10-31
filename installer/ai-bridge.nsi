@@ -15,7 +15,9 @@ Unicode true
 !define RUN_KEY "Software\Microsoft\Windows\CurrentVersion\Run"
 
 Name "${APP_NAME}"
-!define ROOT "${__FILEDIR__}\.."
+!ifndef ROOT
+  !define ROOT "${__FILEDIR__}\.."
+!endif
 OutFile "${ROOT}\dist\AI-Bridge-Setup.exe"
 InstallDir "$LOCALAPPDATA\Programs\AI Bridge"
 InstallDirRegKey HKCU "Software\AI Bridge" "InstallDir"

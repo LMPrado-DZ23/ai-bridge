@@ -34,7 +34,8 @@ jobs:
       - name: Build installer
         run: |
           New-Item -ItemType Directory -Force -Path dist | Out-Null
-          & "C:\Program Files (x86)\NSIS\makensis.exe" installer\ai-bridge.nsi
+          $root = (Get-Location).Path
+          & "C:\Program Files (x86)\NSIS\makensis.exe" /DROOT="$root" installer\ai-bridge.nsi
 
       - name: Verify installer
         run: |
