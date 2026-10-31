@@ -14,6 +14,7 @@ import httpx
 from . import config as cfg
 from . import oauth
 from . import translate
+from . import eventlog
 
 app = Flask(__name__)
 log = logging.getLogger(__name__)
@@ -86,8 +87,12 @@ def _metrics_after(response):
                 provider = model.split('/', 1)[0] if '/' in model else (model or '')
         except Exception:
             provider, model = '', ''
+        duration_ms = (time.perf_counter() - started) * 1000
         _record_request(request.path, request.method, response.status_code,
-                        (time.perf_counter() - started) * 1000, provider, model)
+                        duration_ms, provider, model)
+        eventlog.append({'ts': time.time(), 'path': request.path, 'method': request.method,
+                         'status': response.status_code, 'ms': round(duration_ms, 1),
+                         'provider': provider, 'model': model})
     return response
 
 

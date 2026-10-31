@@ -16,6 +16,7 @@ from . import codex as codex_mod
 from . import launchers
 from . import oauth
 from . import oauth_login
+from . import eventlog
 
 AUTOSTART_NAME = 'AI Bridge'
 AUTOSTART_KEY = r'Software\Microsoft\Windows\CurrentVersion\Run'
@@ -345,6 +346,11 @@ class Bridge:
         self._tray = tray
 
     # ── Window controls ──────────────────────────────────────────────────────
+
+    def get_logs(self, limit=200):
+        """Eventos persistidos (sem prompts/credenciais)."""
+        events = eventlog.read_recent(int(limit or 200))
+        return {'ok': True, 'events': events, 'dir': str(eventlog.LOG_DIR), 'count': len(events)}
 
     def get_metrics(self):
         """Contadores do proxy e eventos recentes para a tela de monitoramento."""
