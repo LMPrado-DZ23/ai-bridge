@@ -18,8 +18,7 @@ def _ui_url() -> str:
 def _make_tray_image():
     """Load the same branded AI Bridge icon used by the Windows executable."""
     from PIL import Image, ImageDraw
-    base = Path(sys._MEIPASS) if getattr(sys, 'frozen', False) else Path(__file__).parent
-    icon_path = base / 'ai_bridge' / 'ui' / 'assets' / 'icons' / 'ai-bridge.ico'
+    icon_path = _brand_icon_path()
     try:
         with Image.open(icon_path) as source:
             return source.convert('RGBA').resize((64, 64), Image.Resampling.LANCZOS)
@@ -36,9 +35,46 @@ def _make_tray_image():
         return img
 
 
+def _brand_icon_path() -> Path:
+    base = Path(sys._MEIPASS) if getattr(sys, 'frozen', False) else Path(__file__).parent
+    return base / 'ai_bridge' / 'ui' / 'assets' / 'icons' / 'ai-bridge.ico'
+
+
+def _set_app_user_model_id():
+    """Agrupa a janela com o próprio app no Windows (ícone/nome da barra)."""
+    if sys.platform != 'win32':
+        return
+    try:
+        import ctypes
+        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID('DZ23.AIBridge.1')
+    except Exception:
+        pass
+
+
+def _apply_brand_icon(window):
+    """Troca o ícone da janela (barra de tarefas) pelo ícone do AI Bridge.
+
+    Rodando do fonte com pythonw.exe, o Windows usa o ícone do interpretador;
+    definir o Icon do formulário WinForms corrige isso.
+    """
+    icon = _brand_icon_path()
+    if not icon.is_file():
+        return
+    try:
+        native = getattr(window, 'native', None)
+        if native is None:
+            return
+        from System.Drawing import Icon  # type: ignore[import]
+        native.Icon = Icon(str(icon))
+    except Exception:
+        pass
+
+
 def main():
     from ai_bridge import proxy
     from ai_bridge.bridge import Bridge
+
+    _set_app_user_model_id()
 
     # Start proxy before creating the window so the port is ready
     proxy.start()
@@ -101,6 +137,7 @@ def main():
 
         window.events.closing += _on_closing
 
+        window.events.loaded += lambda: _apply_brand_icon(window)
         threading.Thread(target=tray.run, daemon=True, name='ai-bridge-tray').start()
     except ImportError:
         pass  # pystray/PIL unavailable — close button destroys the window normally
