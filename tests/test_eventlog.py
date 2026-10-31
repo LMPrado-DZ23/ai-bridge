@@ -1,4 +1,5 @@
 """Log de eventos: rotação, saneamento e integração com o proxy."""
+from pathlib import Path
 import json
 
 from ai_bridge import eventlog, proxy
@@ -53,3 +54,13 @@ def test_proxy_writes_event_log(tmp_path, monkeypatch):
     assert events and events[0]['path'] == '/v1/chat/completions'
     assert events[0]['provider'] == 'DeepSeek'
     assert 'prompt' not in events[0]
+
+
+def test_logs_screen_is_wired():
+    root = Path(__file__).resolve().parents[1]
+    html = (root / 'ai_bridge' / 'ui' / 'index.html').read_text(encoding='utf-8')
+    js = (root / 'ai_bridge' / 'ui' / 'app.js').read_text(encoding='utf-8')
+    assert 'data-screen="logs"' in html
+    assert 'id="btn-logs"' in html
+    assert 'id="logs-list"' in html
+    assert 'renderLogs' in js and "api('get_logs'" in js

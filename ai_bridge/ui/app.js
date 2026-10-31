@@ -62,6 +62,7 @@ function go(screen, extra) {
   else if (screen === 'add') { _editingProvider = extra || null; renderAdd(extra); }
   else if (screen === 'settings') renderSettings();
   else if (screen === 'monitor') renderMonitor();
+  else if (screen === 'logs') renderLogs();
   renderSidebar();
 }
 
@@ -109,6 +110,8 @@ function renderSidebar() {
   if (settingsBtn) settingsBtn.classList.toggle('is-active', _currentScreen === 'settings');
   const monitorBtn = document.getElementById('btn-monitor');
   if (monitorBtn) monitorBtn.classList.toggle('is-active', _currentScreen === 'monitor');
+  const logsBtn = document.getElementById('btn-logs');
+  if (logsBtn) logsBtn.classList.toggle('is-active', _currentScreen === 'logs');
 
   const countEl = document.getElementById('home-provider-count');
   if (countEl) countEl.textContent = providers.length;
@@ -364,6 +367,29 @@ async function pollOauth(name, tries = 90) {
       return;
     }
   }
+}
+
+// ── Logs persistidos ──────────────────────────────────────────────────────────
+
+async function renderLogs() {
+  const res = await api('get_logs', 100);
+  const list = document.getElementById('logs-list');
+  const pathEl = document.getElementById('logs-path');
+  if (pathEl) pathEl.textContent = res && res.dir ? `Arquivo: ${res.dir}\\events.jsonl` : '';
+  if (!list) return;
+  if (!res || !res.ok) { list.innerHTML = '<div class="ab-hint">Não foi possível ler os logs.</div>'; return; }
+  const rows = res.events || [];
+  list.innerHTML = rows.length
+    ? rows.map(ev => {
+        const time = new Date(ev.ts * 1000).toLocaleString('pt-BR');
+        return `<div class="ab-events__row">
+          <span class="ab-events__time">${time}</span>
+          <span class="ab-events__path">${escHtml(ev.provider || '')} ${escHtml(ev.method)} ${escHtml(ev.path)}</span>
+          <span class="ab-events__status ${ev.status >= 400 ? 'is-error' : ''}">${ev.status}</span>
+          <span class="ab-events__ms">${ev.ms} ms</span>
+        </div>`;
+      }).join('')
+    : '<div class="ab-hint">Nenhum evento persistido ainda.</div>';
 }
 
 // ── Monitoramento ──────────────────────────────────────────────────────────────
@@ -828,6 +854,8 @@ function wireControls() {
   document.getElementById('btn-add-sidebar')?.addEventListener('click', () => go('add'));
   document.getElementById('btn-settings')?.addEventListener('click', () => go('settings'));
   document.getElementById('btn-monitor')?.addEventListener('click', () => go('monitor'));
+  document.getElementById('btn-logs')?.addEventListener('click', () => go('logs'));
+  document.getElementById('btn-refresh-logs')?.addEventListener('click', () => renderLogs());
   document.getElementById('btn-refresh-monitor')?.addEventListener('click', () => renderMonitor());
   document.getElementById('btn-add-from-providers')?.addEventListener('click', () => go('add'));
 

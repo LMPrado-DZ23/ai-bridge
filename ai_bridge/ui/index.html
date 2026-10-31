@@ -80,6 +80,10 @@
               <span class="ab-navdot ab-navdot--idle"></span>
               <span class="ab-navitem__name">Monitoramento</span>
             </button>
+            <button id="btn-logs" class="ab-navitem" type="button">
+              <span class="ab-navdot ab-navdot--idle"></span>
+              <span class="ab-navitem__name">Logs</span>
+            </button>
             <button id="btn-settings" class="ab-navitem" type="button">
               <span class="ab-navdot ab-navdot--idle"></span>
               <span class="ab-navitem__name">Configurações</span>
@@ -200,6 +204,19 @@
             <p class="ab-label">Eventos recentes</p>
             <div id="monitor-events" class="ab-events"></div>
           </div>
+        </section>
+
+        <!-- Screen: Logs -->
+        <section data-screen="logs" class="ab-screen" hidden>
+          <div class="ab-page-head">
+            <div>
+              <h1 class="ab-page-title">Logs</h1>
+              <p class="ab-page-sub">Metadados de requisição — sem prompts, tokens ou cookies</p>
+            </div>
+            <button id="btn-refresh-logs" class="ab-btn ab-btn--ghost ab-btn--sm" type="button">Atualizar</button>
+          </div>
+          <p id="logs-path" class="ab-hint"></p>
+          <div id="logs-list" class="ab-events"></div>
         </section>
 
         <!-- Screen: Settings -->
