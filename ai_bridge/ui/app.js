@@ -60,6 +60,60 @@ function go(screen, extra) {
   else if (screen === 'target') { _currentTarget = extra; renderTarget(extra); }
   else if (screen === 'providers') renderProviders();
   else if (screen === 'add') { _editingProvider = extra || null; renderAdd(extra); }
+  renderSidebar();
+}
+
+// ── Sidebar (menu persistente) ───────────────────────────────────────────────
+
+function renderSidebar() {
+  const providers = _state.providers || [];
+  const targets = _state.targets || [];
+
+  const targetsEl = document.getElementById('sidebar-targets');
+  if (targetsEl) {
+    targetsEl.innerHTML = targets.map(t => {
+      const state = t.connected ? 'on' : t.installed ? 'idle' : 'off';
+      const active = _currentScreen === 'target' && _currentTarget === t.id;
+      const hint = t.connected ? 'conectado' : t.installed ? 'instalado' : '—';
+      return `<button type="button" class="ab-navitem${active ? ' is-active' : ''}" data-nav-target="${escHtml(t.id)}">
+        <span class="ab-navdot ab-navdot--${state}"></span>
+        <span class="ab-navitem__name">${escHtml(t.name)}</span>
+        <span class="ab-navitem__hint">${hint}</span>
+      </button>`;
+    }).join('');
+    targetsEl.querySelectorAll('[data-nav-target]').forEach(btn => {
+      btn.addEventListener('click', () => go('target', btn.dataset.navTarget));
+    });
+  }
+
+  const providersEl = document.getElementById('sidebar-providers');
+  if (providersEl) {
+    providersEl.innerHTML = providers.map(p => {
+      const auth = p.auth || { kind: 'api_key' };
+      const dot = auth.kind === 'oauth' ? (auth.connected ? 'on' : 'idle') : 'oauth';
+      const active = _currentScreen === 'add' && _editingProvider === p.name;
+      return `<button type="button" class="ab-navitem${active ? ' is-active' : ''}" data-nav-provider="${escHtml(p.name)}">
+        <span class="ab-navdot ab-navdot--${dot}"></span>
+        <span class="ab-navitem__name">${escHtml(p.name)}</span>
+        <span class="ab-navitem__hint">${(p.models || []).length}</span>
+      </button>`;
+    }).join('') || '<div class="ab-hint" style="padding:4px 8px">Nenhum provedor ainda.</div>';
+    providersEl.querySelectorAll('[data-nav-provider]').forEach(btn => {
+      btn.addEventListener('click', () => go('add', btn.dataset.navProvider));
+    });
+  }
+
+  const countEl = document.getElementById('home-provider-count');
+  if (countEl) countEl.textContent = providers.length;
+
+  const statusEl = document.getElementById('sidebar-status');
+  if (statusEl) {
+    const running = _state.proxy_running;
+    statusEl.textContent = running === false
+      ? 'proxy parado'
+      : `proxy ativo · porta ${_state.port || '—'}`;
+    statusEl.classList.toggle('ab-status--off', running === false);
+  }
 }
 
 // ── Render: Home ──────────────────────────────────────────────────────────────
@@ -104,6 +158,16 @@ function renderHome() {
   container.querySelectorAll('.ab-target-card').forEach(card => {
     card.addEventListener('click', () => go('target', card.dataset.target));
   });
+
+  const stats = document.getElementById('home-stats');
+  if (stats) {
+    const models = (_state.models || []).length;
+    stats.innerHTML =
+      `<div class="ab-stat"><span>${provCount}</span><small>provedores</small></div>` +
+      `<div class="ab-stat"><span>${models}</span><small>modelos</small></div>` +
+      `<div class="ab-stat"><span>${_state.proxy_running === false ? 'off' : 'ativo'}</span><small>proxy</small></div>`;
+  }
+  renderSidebar();
 }
 
 // ── Render: Target detail ─────────────────────────────────────────────────────
@@ -192,23 +256,30 @@ function renderProviders() {
   container.innerHTML = providers.map(p => {
     const modelCount = (p.models || []).length;
     const auth = p.auth || { kind: 'api_key' };
-    const authLabel = auth.kind === 'oauth'
-      ? `OAuth · ${escHtml(auth.source || '')}${auth.connected ? ' ✓' : ' — sem sessão'}`
-      : 'API key';
-    const loginBtn = (auth.kind === 'oauth' && !auth.connected)
-      ? `<button class="btn btn-ghost btn-sm" data-login="${escHtml(p.name)}">Entrar</button>` : '';
-    const reauthBtn = (auth.kind === 'oauth' && auth.connected)
-      ? `<button class="btn btn-ghost btn-sm" data-reauth="${escHtml(p.name)}">Reautenticar</button>` : '';
+    const isOauth = auth.kind === 'oauth';
+    const badge = isOauth
+      ? `<span class="ab-badge ab-badge--oauth">OAuth · ${escHtml(auth.source || '')}${auth.connected ? ' ✓' : ''}</span>`
+      : '<span class="ab-badge ab-badge--api">API key</span>';
+    const session = (isOauth && !auth.connected)
+      ? '<span class="ab-badge ab-badge--off">sem sessão</span>' : '';
+    const meta = [p.base_url || '', modelCount ? `${modelCount} modelo${modelCount === 1 ? '' : 's'}` : '']
+      .filter(Boolean).join(' · ');
+    const initial = escHtml((p.name || '?').trim().charAt(0).toUpperCase());
+    const loginBtn = (isOauth && !auth.connected)
+      ? `<button class="ab-btn ab-btn--ghost ab-btn--sm" data-login="${escHtml(p.name)}">Entrar</button>` : '';
+    const reauthBtn = (isOauth && auth.connected)
+      ? `<button class="ab-btn ab-btn--ghost ab-btn--sm" data-reauth="${escHtml(p.name)}">Reautenticar</button>` : '';
     return `<div class="ab-provider-item">
+      <div class="ab-provider-item__icon">${initial}</div>
       <div class="ab-provider-item__info">
-        <div class="ab-provider-item__name">${escHtml(p.name)}</div>
-        <div class="ab-provider-item__sub">${escHtml(p.base_url || '')}${modelCount ? ` · ${modelCount} modelo${modelCount !== 1 ? 's' : ''}` : ''} · ${authLabel}</div>
+        <div class="ab-provider-item__name">${escHtml(p.name)} ${badge} ${session}</div>
+        <div class="ab-provider-item__sub">${escHtml(meta)}</div>
       </div>
       <div class="ab-provider-item__actions">
         ${loginBtn}
         ${reauthBtn}
-        <button class="btn btn-ghost btn-sm" data-edit="${escHtml(p.name)}">Editar</button>
-        <button class="btn btn-ghost btn-sm ab-btn-danger" data-remove="${escHtml(p.name)}">Remover</button>
+        <button class="ab-btn ab-btn--ghost ab-btn--sm" data-edit="${escHtml(p.name)}">Editar</button>
+        <button class="ab-btn ab-btn--ghost ab-btn--sm ab-btn-danger" data-remove="${escHtml(p.name)}">Remover</button>
       </div>
     </div>`;
   }).join('');
@@ -434,6 +505,7 @@ function selectedModelLines() {
 async function refresh() {
   const res = await api('state');
   if (res) _state = res;
+  renderSidebar();
 }
 
 async function tickRefresh() {
