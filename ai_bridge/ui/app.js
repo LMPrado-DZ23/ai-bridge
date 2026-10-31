@@ -708,6 +708,7 @@ function wireControls() {
 
   // Providers back + add
   document.getElementById('btn-back-providers')?.addEventListener('click', () => go('home'));
+  document.getElementById('btn-add-sidebar')?.addEventListener('click', () => go('add'));
   document.getElementById('btn-add-from-providers')?.addEventListener('click', () => go('add'));
 
   // Atalho para a extensão Cookie Editor (Chrome Web Store)

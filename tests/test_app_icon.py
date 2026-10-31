@@ -96,3 +96,10 @@ def test_add_screen_is_a_two_step_wizard():
     assert 'function showAddStep(' in js
     assert 'function renderModelPreview(' in js
     assert 'function renderSummary(' in js
+
+
+def test_add_provider_button_is_wired():
+    js = (ROOT / "ai_bridge" / "ui" / "app.js").read_text(encoding="utf-8")
+    html = (ROOT / "ai_bridge" / "ui" / "index.html").read_text(encoding="utf-8")
+    assert 'id="btn-add-sidebar"' in html
+    assert "btn-add-sidebar" in js and "go('add')" in js
