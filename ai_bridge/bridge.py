@@ -689,8 +689,37 @@ class Bridge:
             if provider and str((provider.get('auth') or {}).get('kind', '')).lower() == 'cookie':
                 if not cfg.get_cookie(provider_name):
                     return {'ok': False, 'error': 'Cookie de sessão ausente para este provedor.', 'auth_required': True}
-                return {'ok': True, 'cookie': True,
-                        'message': 'Cookie salvo. Envie um teste pelo endpoint configurado.'}
+                try:
+                    resolved = oauth.resolve(provider)
+                except Exception as exc:  # noqa: BLE001 - surfaced in the UI
+                    return {'ok': False, 'error': str(exc)}
+                base = resolved.base_url.rstrip('/')
+                try:
+                    probe = httpx.get(f'{base}/models', headers=resolved.headers, timeout=15.0,
+                                      follow_redirects=False)
+                    if probe.status_code < 400:
+                        try:
+                            count = len((probe.json() or {}).get('data') or [])
+                        except ValueError:
+                            count = 0
+                        return {'ok': True, 'cookie': True, 'models': count,
+                                'message': f'Cookie aceito — {count} modelo(s) em /models.'}
+                except Exception as exc:  # noqa: BLE001 - reported to the user
+                    return {'ok': False, 'error': f'Falha ao contatar {base}: {exc}'}
+                model_id = ((provider.get('models') or [{}])[0]).get('id', '')
+                if not model_id:
+                    return {'ok': False, 'error': f'HTTP {probe.status_code} em /models e nenhum modelo configurado para testar inferência.'}
+                try:
+                    reply = httpx.post(f'{base}/chat/completions', headers=resolved.headers,
+                                       json={'model': model_id, 'max_tokens': 1,
+                                             'messages': [{'role': 'user', 'content': 'ping'}]},
+                                       timeout=20.0, follow_redirects=False)
+                except Exception as exc:  # noqa: BLE001
+                    return {'ok': False, 'error': f'Falha na inferência: {exc}'}
+                if reply.status_code < 400:
+                    return {'ok': True, 'cookie': True,
+                            'message': 'Cookie aceito — inferência respondeu.'}
+                return {'ok': False, 'error': f'Cookie recusado pelo endpoint (HTTP {reply.status_code}).'}
             if provider and oauth.is_oauth(provider):
                 try:
                     resolved = oauth.resolve(provider, force_refresh=True)
