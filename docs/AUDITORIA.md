@@ -89,3 +89,21 @@ e criação do ícone de bandeja. Grava JSON e sai com código 0 quando tudo pas
 
 Última execução (2026-10-31): `ok=true`, minimize `iconic=true`, maximize `2560×1600`,
 restauração de volta a `1028×1294`, resize `650×820` aplicado, `tray_created.ok=true`.
+
+## E2E do formulário (sem credenciais)
+
+`scripts/ui_form_e2e.py` sobe um upstream falso em `127.0.0.1`, abre a UI real, clica no catálogo,
+preenche nome/URL/chave/modelos, busca modelos, testa conexão, salva e remove o provedor.
+Resultado da última execução:
+
+```
+catalog_click: step2=true, summary="Codex / ChatGPT"
+fetch_models:  "2 modelos · 2 gratuitos", picker=2
+test_connection: "✓ Conexão OK — 2 modelo(s)"
+save: provedor salvo com 2 modelos
+ok: true
+```
+
+```powershell
+.\.venv\Scripts\python.exe scripts\ui_form_e2e.py --out form-e2e.json
+```
