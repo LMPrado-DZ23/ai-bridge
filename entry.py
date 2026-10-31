@@ -102,8 +102,9 @@ def main():
     start_hidden = any(arg in sys.argv for arg in ('--tray', '--hidden'))
 
     # Janela alta e estreita (destinos um embaixo do outro), limitada à área útil
-    # do monitor para nunca abrir parte fora da tela.
-    width, height = 680, 1516
+    # do monitor para nunca abrir parte fora da tela. Continua redimensionável
+    # pelo grip no canto inferior direito ou pelos botões de tamanho.
+    width, height = 700, 1450
     area = _work_area()
     if area:
         width = min(width, max(560, area[0] - 40))
