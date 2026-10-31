@@ -61,6 +61,7 @@ function go(screen, extra) {
   else if (screen === 'providers') renderProviders();
   else if (screen === 'add') { _editingProvider = extra || null; renderAdd(extra); }
   else if (screen === 'settings') renderSettings();
+  else if (screen === 'monitor') renderMonitor();
   renderSidebar();
 }
 
@@ -106,6 +107,8 @@ function renderSidebar() {
 
   const settingsBtn = document.getElementById('btn-settings');
   if (settingsBtn) settingsBtn.classList.toggle('is-active', _currentScreen === 'settings');
+  const monitorBtn = document.getElementById('btn-monitor');
+  if (monitorBtn) monitorBtn.classList.toggle('is-active', _currentScreen === 'monitor');
 
   const countEl = document.getElementById('home-provider-count');
   if (countEl) countEl.textContent = providers.length;
@@ -360,6 +363,47 @@ async function pollOauth(name, tries = 90) {
       if (_currentScreen === 'add') syncAuthUi({ kind: 'oauth', source: 'codex', status: st.auth });
       return;
     }
+  }
+}
+
+// ── Monitoramento ──────────────────────────────────────────────────────────────
+
+function formatUptime(seconds) {
+  const s = Number(seconds) || 0;
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  return h ? `${h}h ${m}m` : `${m}m`;
+}
+
+async function renderMonitor() {
+  const res = await api('get_metrics');
+  const stats = document.getElementById('monitor-stats');
+  const events = document.getElementById('monitor-events');
+  if (!res || !res.ok) {
+    if (events) events.innerHTML = '<div class="ab-hint">Não foi possível ler as métricas.</div>';
+    return;
+  }
+  if (stats) {
+    stats.innerHTML =
+      `<div class="ab-stat"><span>${res.requests ?? 0}</span><small>requisições</small></div>` +
+      `<div class="ab-stat"><span>${res.errors ?? 0}</span><small>erros</small></div>` +
+      `<div class="ab-stat"><span>${res.avg_ms ?? 0} ms</span><small>latência média</small></div>` +
+      `<div class="ab-stat"><span>${formatUptime(res.uptime_s)}</span><small>ativo</small></div>` +
+      `<div class="ab-stat"><span>${res.running ? 'on' : 'off'}</span><small>proxy${res.port ? ' · ' + res.port : ''}</small></div>`;
+  }
+  if (events) {
+    const rows = (res.events || []).slice(0, 20);
+    events.innerHTML = rows.length
+      ? rows.map(ev => {
+          const time = new Date(ev.ts * 1000).toLocaleTimeString('pt-BR');
+          return `<div class="ab-events__row">
+            <span class="ab-events__time">${time}</span>
+            <span class="ab-events__path">${escHtml(ev.method)} ${escHtml(ev.path)}</span>
+            <span class="ab-events__status ${ev.status >= 400 ? 'is-error' : ''}">${ev.status}</span>
+            <span class="ab-events__ms">${ev.ms} ms</span>
+          </div>`;
+        }).join('')
+      : '<div class="ab-hint">Nenhuma requisição registrada ainda.</div>';
   }
 }
 
@@ -782,6 +826,8 @@ function wireControls() {
   document.getElementById('btn-back-providers')?.addEventListener('click', () => go('home'));
   document.getElementById('btn-add-sidebar')?.addEventListener('click', () => go('add'));
   document.getElementById('btn-settings')?.addEventListener('click', () => go('settings'));
+  document.getElementById('btn-monitor')?.addEventListener('click', () => go('monitor'));
+  document.getElementById('btn-refresh-monitor')?.addEventListener('click', () => renderMonitor());
   document.getElementById('btn-add-from-providers')?.addEventListener('click', () => go('add'));
 
   const bindSetting = (id, key) => {

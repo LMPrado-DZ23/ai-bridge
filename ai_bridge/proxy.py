@@ -6,8 +6,9 @@ import json
 import socket
 import threading
 import logging
+import time
 
-from flask import Flask, request, Response, jsonify
+from flask import Flask, request, Response, jsonify, g
 import httpx
 
 from . import config as cfg
@@ -19,6 +20,71 @@ log = logging.getLogger(__name__)
 
 _thread: threading.Thread | None = None
 _port: int | None = None
+
+# ─── Métricas de execução (sem prompts, tokens ou credenciais) ─────────────────
+
+_METRICS_LOCK = threading.Lock()
+_EVENT_LIMIT = 50
+_METRICS = {
+    'requests': 0,
+    'errors': 0,
+    'latency_total_ms': 0.0,
+    'by_path': {},
+    'events': [],
+    'started_at': time.time(),
+}
+
+
+def _record_request(path: str, method: str, status: int, duration_ms: float):
+    with _METRICS_LOCK:
+        _METRICS['requests'] += 1
+        if status >= 400:
+            _METRICS['errors'] += 1
+        _METRICS['latency_total_ms'] += duration_ms
+        _METRICS['by_path'][path] = _METRICS['by_path'].get(path, 0) + 1
+        _METRICS['events'].append({
+            'ts': time.time(),
+            'path': path,
+            'method': method,
+            'status': status,
+            'ms': round(duration_ms, 1),
+        })
+        del _METRICS['events'][:-_EVENT_LIMIT]
+
+
+@app.before_request
+def _metrics_before():
+    g._ab_started = time.perf_counter()
+
+
+@app.after_request
+def _metrics_after(response):
+    started = getattr(g, '_ab_started', None)
+    if started is not None and request.path != '/health':
+        _record_request(request.path, request.method, response.status_code,
+                        (time.perf_counter() - started) * 1000)
+    return response
+
+
+def get_metrics() -> dict:
+    """Instantâneo agregado para a tela de monitoramento."""
+    with _METRICS_LOCK:
+        requests_total = _METRICS['requests']
+        return {
+            'ok': True,
+            'requests': requests_total,
+            'errors': _METRICS['errors'],
+            'avg_ms': round(_METRICS['latency_total_ms'] / requests_total, 1) if requests_total else 0.0,
+            'uptime_s': int(time.time() - _METRICS['started_at']),
+            'by_path': dict(_METRICS['by_path']),
+            'events': list(reversed(_METRICS['events'])),
+        }
+
+
+def reset_metrics():
+    with _METRICS_LOCK:
+        _METRICS.update({'requests': 0, 'errors': 0, 'latency_total_ms': 0.0,
+                         'by_path': {}, 'events': [], 'started_at': time.time()})
 
 
 # ─── Upstream helpers ──────────────────────────────────────────────────────────

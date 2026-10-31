@@ -346,6 +346,16 @@ class Bridge:
 
     # ── Window controls ──────────────────────────────────────────────────────
 
+    def get_metrics(self):
+        """Contadores do proxy e eventos recentes para a tela de monitoramento."""
+        try:
+            data = proxy.get_metrics()
+        except Exception as exc:
+            return {'ok': False, 'error': str(exc)}
+        data['port'] = proxy.get_port()
+        data['running'] = proxy.is_running()
+        return data
+
     def get_settings(self):
         """Preferências de desktop + estado de autostart e porta do proxy."""
         return {

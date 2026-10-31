@@ -76,6 +76,10 @@
 
           <div class="ab-nav__group">
             <p class="ab-nav__title">Sistema</p>
+            <button id="btn-monitor" class="ab-navitem" type="button">
+              <span class="ab-navdot ab-navdot--idle"></span>
+              <span class="ab-navitem__name">Monitoramento</span>
+            </button>
             <button id="btn-settings" class="ab-navitem" type="button">
               <span class="ab-navdot ab-navdot--idle"></span>
               <span class="ab-navitem__name">Configurações</span>
@@ -178,6 +182,24 @@
             </button>
           </div>
           <div id="provider-list-screen" class="ab-provider-list"></div>
+        </section>
+
+        <!-- Screen: Monitoring -->
+        <section data-screen="monitor" class="ab-screen" hidden>
+          <div class="ab-page-head">
+            <div>
+              <h1 class="ab-page-title">Monitoramento</h1>
+              <p class="ab-page-sub">Contadores do proxy local — sem prompts, tokens ou credenciais</p>
+            </div>
+            <button id="btn-refresh-monitor" class="ab-btn ab-btn--ghost ab-btn--sm" type="button">Atualizar</button>
+          </div>
+
+          <div class="ab-stat-row" id="monitor-stats"></div>
+
+          <div class="ab-card">
+            <p class="ab-label">Eventos recentes</p>
+            <div id="monitor-events" class="ab-events"></div>
+          </div>
         </section>
 
         <!-- Screen: Settings -->
