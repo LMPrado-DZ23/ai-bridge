@@ -76,3 +76,16 @@ CI (GitHub Actions): `.github/workflows/ci.yml` roda lint + testes;
 
 Abra uma issue com: arquivo:linha, entrada reproduzível (payload/URL sem credenciais),
 resultado esperado × obtido e o teste que deveria cobrir o caso.
+
+## Smoke test de desktop (Windows)
+
+`scripts/desktop_smoke.py` abre a janela real e exercita o ciclo de vida sem clique humano:
+proxy no ar, geometria, minimizar, restaurar, maximizar, restaurar de volta, redimensionar
+e criação do ícone de bandeja. Grava JSON e sai com código 0 quando tudo passa.
+
+```powershell
+.\.venv\Scripts\python.exe scripts\desktop_smoke.py --out smoke.json
+```
+
+Última execução (2026-10-31): `ok=true`, minimize `iconic=true`, maximize `2560×1600`,
+restauração de volta a `1028×1294`, resize `650×820` aplicado, `tray_created.ok=true`.
