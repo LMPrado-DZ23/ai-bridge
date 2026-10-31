@@ -8,7 +8,7 @@
 
 Requisitos: Windows 10/11 x64 com WebView2 (presente por padrão).
 
-## Opção 2 — instalador (script pronto, build no CI)
+## Opção 2 — instalador (validado em 2026-10-31)
 
 O instalador é gerado por `installer/ai-bridge.nsi` (NSIS 3) e empacotado pelo workflow
 `.github/workflows/installer.yml`, acionado manualmente (**não publica release**).

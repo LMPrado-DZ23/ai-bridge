@@ -11,7 +11,7 @@ Atualizado em 2026-10-31. Commits **locais** (sem push por regra da missão).
 | 3 | Métricas do proxy + tela Monitoramento | `f21cc37` | stats reais 0/0/0 ms e proxy na porta |
 | 4 | Host guard + binding loopback | `0086068` | evil host→403; loopback→200 |
 | 5 | Matriz de compatibilidade verificada | `b4b0d85` | `verified ⊆ declarado` |
-| 6 | Instalador NSIS + CI manual + guia | `4791df5` | YAML válido; tokens NSIS; **build não executado** |
+| 6 | Instalador NSIS + CI manual + guia | `4791df5` | **validado no CI em 2026-10-31**: `AI-Bridge-Setup.exe` (25.381.215 bytes, SHA-256 `4ADC3156…`), instalado silenciosamente nesta máquina |
 | 7 | Roteamento + fallback opt-in | `b07e2f7` | fallback off por padrão |
 | 8 | Contadores por provedor/modelo | `5aff6c5` | by_provider/by_model |
 | 9 | Smoke test de desktop | `935b6a2` | minimize iconic; max 2560×1600; volta 1028×1294 |
@@ -30,7 +30,7 @@ Atualizado em 2026-10-31. Commits **locais** (sem push por regra da missão).
 | Restaurar pela bandeja | ✅ menu Abrir |
 | Proxy ativo na bandeja | ✅ tray status “Proxy ativo · porta N” |
 | Sair encerra processos | ✅ `quit()` para tray/window |
-| Instalável no Windows | ⚠️ script pronto; **build não validado** (sem makensis local) |
+| Instalável no Windows | ✅ instalador compilado no CI e instalado localmente (atalhos + desinstalador) |
 | Menu Iniciar | ✅ atalhos criados no instalador (não validado) |
 | Autostart configurável | ✅ HKCU Run reversível |
 | Claude Code funcional | ⚠️ BLOCKED_BY_EXTERNAL (login/app do usuário) |
@@ -42,7 +42,7 @@ Atualizado em 2026-10-31. Commits **locais** (sem push por regra da missão).
 | OAuth validado | ✅ Codex real; PKCE/callback por fonte |
 | Testes existentes passando | ✅ 211 |
 | Novos testes cobrindo o novo | ✅ por onda |
-| Build de produção | ⚠️ CI só roda com push autorizado |
+| Build de produção | ✅ CI verde; release `latest` com portátil + instalador + SHA-256 |
 | Documentação atualizada | ✅ README, OAUTH, AUDITORIA, COMPATIBILITY, ROUTING, LOGS, INSTALL-WINDOWS |
 
 ## Pendências e bloqueios

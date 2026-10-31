@@ -45,7 +45,8 @@ Binários gerados pelo GitHub Actions a cada push na `main` (release `latest`):
 
 | Plataforma | Arquivo | Requisitos |
 |---|---|---|
-| **Windows 10/11 (x64)** | [AI-Bridge-Windows.exe](https://github.com/LMPrado-DZ23/ai-bridge/releases/latest/download/AI-Bridge-Windows.exe) | executável portátil; usa o **WebView2** (já presente no Windows 10/11) |
+| **Windows 10/11 (x64) — instalador** | [AI-Bridge-Setup.exe](https://github.com/LMPrado-DZ23/ai-bridge/releases/latest/download/AI-Bridge-Setup.exe) | instala por usuário, atalhos no Menu Iniciar, desinstalador e autostart opcional |
+| **Windows 10/11 (x64) — portátil** | [AI-Bridge-Windows.exe](https://github.com/LMPrado-DZ23/ai-bridge/releases/latest/download/AI-Bridge-Windows.exe) | executável portátil; usa o **WebView2** (já presente no Windows 10/11) |
 | **Linux (x64)** | [AI-Bridge-Linux](https://github.com/LMPrado-DZ23/ai-bridge/releases/latest/download/AI-Bridge-Linux) | build em Ubuntu 22.04; precisa de **GTK3 + WebKitGTK 4.1** (ex.: `libwebkit2gtk-4.1-0`) |
 | **macOS (Apple Silicon)** | [AI-Bridge-macOS](https://github.com/LMPrado-DZ23/ai-bridge/releases/latest/download/AI-Bridge-macOS) | build em `macos-latest` (arm64), **não assinado** — veja abaixo |
 
