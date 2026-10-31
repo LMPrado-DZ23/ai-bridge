@@ -100,7 +100,113 @@ _PRESETS = [
     },
 ]
 
-# Target metadata — order determines display order
+# Catálogo mostrado no menu "Adicionar provedor".
+# kind: "oauth" (assinatura reaproveitada de CLI), "api_key" ou "custom".
+# models: strings "id|Label" (mesmo formato do formulário).
+CATALOG = [
+    # ── Assinaturas via OAuth ────────────────────────────────────────────────
+    {
+        'id': 'codex', 'label': 'Codex / ChatGPT', 'kind': 'oauth', 'source': 'codex',
+        'description': 'Reaproveita a sessão do `codex login` (plano ChatGPT). Protocolo Responses.',
+        'base_url': '', 'protocol': 'responses',
+        'models': 'gpt-6-luna|GPT-6 Luna\ngpt-5.6-luna|GPT-5.6 Luna\ngpt-reserve|GPT Reserve',
+    },
+    {
+        'id': 'claude', 'label': 'Claude Code', 'kind': 'oauth', 'source': 'claude',
+        'description': 'Sessão do Claude Code (Pro/Max). Passthrough Anthropic, preserva tools.',
+        'base_url': '', 'protocol': 'anthropic',
+        'models': 'claude-sonnet-5|Claude Sonnet 5\nclaude-opus-5|Claude Opus 5',
+    },
+    {
+        'id': 'gemini', 'label': 'Gemini CLI', 'kind': 'oauth', 'source': 'gemini',
+        'description': 'Sessão do gemini-cli gravada em ~/.gemini/oauth_creds.json.',
+        'base_url': '', 'protocol': 'chat',
+        'models': 'gemini-2.5-pro|Gemini 2.5 Pro\ngemini-2.5-flash|Gemini 2.5 Flash',
+    },
+    {
+        'id': 'huggingface', 'label': 'Hugging Face', 'kind': 'oauth', 'source': 'huggingface',
+        'description': 'Token do `hf auth login` no router OpenAI-compatible do HF.',
+        'base_url': '', 'protocol': 'chat',
+        'models': 'meta-llama/Llama-3.3-70B-Instruct|Llama 3.3 70B',
+    },
+    {
+        'id': 'cloudflare', 'label': 'Cloudflare Workers AI', 'kind': 'oauth', 'source': 'cloudflare',
+        'description': 'Sessão do `wrangler login`. Informe a URL com accounts/<id>/ai/v1.',
+        'base_url': '', 'protocol': 'chat', 'models': '',
+    },
+    {
+        'id': 'copilot', 'label': 'GitHub Copilot', 'kind': 'oauth', 'source': 'copilot',
+        'description': 'Token do `gh auth login`. Uso fora do editor é sensível nos termos do GitHub.',
+        'base_url': '', 'protocol': 'chat', 'models': '',
+    },
+    {
+        'id': 'gcloud', 'label': 'Google gcloud ADC', 'kind': 'oauth', 'source': 'gcloud',
+        'description': '`gcloud auth application-default login`. Informe o endpoint OpenAI-compat do Vertex.',
+        'base_url': '', 'protocol': 'chat', 'models': '',
+    },
+    # ── API key ──────────────────────────────────────────────────────────────
+    {
+        'id': 'deepseek', 'label': 'DeepSeek', 'kind': 'api_key',
+        'description': 'API oficial da DeepSeek (chat completions ou responses).',
+        'base_url': 'https://api.deepseek.com/v1', 'protocol': 'chat',
+        'models': 'deepseek-chat|DeepSeek Chat\ndeepseek-reasoner|DeepSeek Reasoner',
+    },
+    {
+        'id': 'openai', 'label': 'OpenAI', 'kind': 'api_key',
+        'description': 'API da OpenAI com chave (não é a assinatura ChatGPT).',
+        'base_url': 'https://api.openai.com/v1', 'protocol': 'chat',
+        'models': 'gpt-4o|GPT-4o\ngpt-4o-mini|GPT-4o Mini\no3-mini|o3 Mini',
+    },
+    {
+        'id': 'anthropic', 'label': 'Anthropic (API key)', 'kind': 'api_key',
+        'description': 'API Anthropic por chave, no protocolo Messages nativo.',
+        'base_url': 'https://api.anthropic.com/v1', 'protocol': 'anthropic',
+        'models': 'claude-sonnet-5|Claude Sonnet 5\nclaude-opus-5|Claude Opus 5',
+    },
+    {
+        'id': 'google', 'label': 'Google Gemini (API key)', 'kind': 'api_key',
+        'description': 'Endpoint OpenAI-compatible do Google AI Studio.',
+        'base_url': 'https://generativelanguage.googleapis.com/v1beta/openai', 'protocol': 'chat',
+        'models': 'gemini-2.5-pro|Gemini 2.5 Pro\ngemini-2.5-flash|Gemini 2.5 Flash',
+    },
+    {
+        'id': 'groq', 'label': 'Groq', 'kind': 'api_key',
+        'description': 'Inferência rápida (Llama, Qwen e afins).',
+        'base_url': 'https://api.groq.com/openai/v1', 'protocol': 'chat',
+        'models': 'llama-3.3-70b-versatile|Llama 3.3 70B\nqwen/qwen3.8-27b|Qwen 3.8 27B',
+    },
+    {
+        'id': 'mistral', 'label': 'Mistral', 'kind': 'api_key',
+        'description': 'Mistral AI (Large, Small, Codestral).',
+        'base_url': 'https://api.mistral.ai/v1', 'protocol': 'chat',
+        'models': 'mistral-large-latest|Mistral Large\ncodestral-latest|Codestral',
+    },
+    {
+        'id': 'openrouter', 'label': 'OpenRouter', 'kind': 'api_key',
+        'description': 'Um endpoint para centenas de modelos de vários provedores.',
+        'base_url': 'https://openrouter.ai/api/v1', 'protocol': 'chat',
+        'models': 'openai/gpt-4o|GPT-4o (OpenRouter)\nanthropic/claude-sonnet|Claude Sonnet (OpenRouter)',
+    },
+    {
+        'id': 'together', 'label': 'Together AI', 'kind': 'api_key',
+        'description': 'Modelos abertos hospedados (Llama, Qwen…).',
+        'base_url': 'https://api.together.xyz/v1', 'protocol': 'chat',
+        'models': 'meta-llama/Llama-3.3-70B-Instruct-Turbo|Llama 3.3 70B Turbo',
+    },
+    {
+        'id': 'ollama', 'label': 'Ollama (local)', 'kind': 'api_key',
+        'description': 'Modelos locais via http://localhost:11434/v1 (chave pode ser vazia).',
+        'base_url': 'http://localhost:11434/v1', 'protocol': 'chat',
+        'models': 'qwen3:8b|Qwen3 8B\nllama3.2|Llama 3.2',
+    },
+    # ── Qualquer outra IA ────────────────────────────────────────────────────
+    {
+        'id': 'custom', 'label': 'API personalizada', 'kind': 'custom',
+        'description': 'Qualquer endpoint OpenAI/Anthropic-compatible: URL, protocolo, chave e modelos.',
+        'base_url': '', 'protocol': 'chat', 'models': '',
+    },
+]
+
 _TARGETS_META = [
     {
         'id': 'claude_code',
@@ -650,3 +756,7 @@ class Bridge:
 
     def get_presets(self) -> dict:
         return {'ok': True, 'presets': _PRESETS}
+
+    def get_catalog(self) -> dict:
+        """Menu de provedores para a UI: assinaturas OAuth, API keys e custom."""
+        return {'ok': True, 'catalog': CATALOG}

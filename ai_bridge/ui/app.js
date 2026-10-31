@@ -283,32 +283,40 @@ async function renderAdd(editName) {
   if (testResult) { testResult.hidden = true; testResult.textContent = ''; }
   syncAuthUi(null);
 
-  // Load presets
-  const presetList = document.getElementById('preset-list');
-  if (presetList) {
-    const res = await api('get_presets');
-    const presets = (res && res.presets) ? res.presets : [];
-    presetList.innerHTML = presets.map(p =>
-      `<button type="button" class="ab-preset-btn" data-preset="${escHtml(p.name)}">
-        <span class="ab-preset-btn__name">${escHtml(p.name)}</span>
-      </button>`
-    ).join('');
-    presetList.querySelectorAll('.ab-preset-btn').forEach(btn => {
-      btn.addEventListener('click', async () => {
-        const pname = btn.dataset.preset;
-        const pres = (res.presets || []).find(x => x.name === pname);
-        if (!pres) return;
-        const fName = document.getElementById('f-name');
-        const fUrl = document.getElementById('f-url');
-        const fModels = document.getElementById('f-models');
-        if (fName && !fName.value) fName.value = pres.name;
-        if (fUrl) fUrl.value = pres.base_url || '';
-        if (fModels) fModels.value = (pres.models || []).map(m =>
-          typeof m === 'string' ? m : `${m.id}|${m.name}`
-        ).join('\n');
-        syncAuthUi(pres.auth || { kind: 'api_key' });
+  // Catálogo de provedores (menu "Escolha o provedor")
+  const catalogEl = document.getElementById('provider-catalog');
+  if (catalogEl) {
+    const res = await api('get_catalog');
+    const entries = (res && res.catalog) ? res.catalog : [];
+    const groups = [
+      ['oauth', 'Assinaturas (OAuth)'],
+      ['api_key', 'API key'],
+      ['custom', 'Personalizado'],
+    ];
+    const badge = (entry) => entry.kind === 'oauth'
+      ? (entry.source || 'oauth')
+      : entry.kind === 'custom' ? 'custom' : 'api key';
+    const render = (filter = '') => {
+      const q = filter.trim().toLowerCase();
+      catalogEl.innerHTML = groups.map(([kind, title]) => {
+        const items = entries.filter(e => e.kind === kind && (
+          !q || `${e.label} ${e.description} ${e.source || ''}`.toLowerCase().includes(q)
+        ));
+        if (!items.length) return '';
+        return `<div class="ab-catalog__group">${title}</div>` + items.map(e =>
+          `<button type="button" class="ab-catalog__item" data-entry="${escHtml(e.id)}">
+             <span class="ab-catalog__label">${escHtml(e.label)}</span>
+             <span class="ab-catalog__badge ab-catalog__badge--${e.kind}">${escHtml(badge(e))}</span>
+             <span class="ab-catalog__desc">${escHtml(e.description || '')}</span>
+           </button>`).join('');
+      }).join('');
+      catalogEl.querySelectorAll('[data-entry]').forEach(btn => {
+        btn.addEventListener('click', () => applyCatalogEntry(entries.find(e => e.id === btn.dataset.entry)));
       });
-    });
+    };
+    render();
+    const search = document.getElementById('catalog-search');
+    if (search) search.oninput = () => render(search.value);
   }
 
   // Load existing provider data for editing
@@ -331,6 +339,8 @@ async function renderAdd(editName) {
       if (fModels) fModels.value = detail.models_raw || (detail.models || []).map(m =>
         typeof m === 'string' ? m : `${m.id}|${m.label || m.name || m.id}`
       ).join('\n');
+      const fProtocol = document.getElementById('f-protocol');
+      if (fProtocol) fProtocol.value = detail.protocol || '';
       syncAuthUi({ ...(detail.auth || { kind: 'api_key' }), status: detail.auth_status });
     }
   }
@@ -361,6 +371,21 @@ function syncAuthUi(auth) {
     else if (st && st.connected) statusEl.textContent = `Sessão encontrada (${st.source})${st.expired ? ' — expirada, será renovada' : ''}`;
     else statusEl.textContent = 'Sem sessão — use “Entrar com…” ou faça login na CLI.';
   }
+}
+
+function applyCatalogEntry(entry) {
+  if (!entry) return;
+  if (entry.kind === 'oauth') syncAuthUi({ kind: 'oauth', source: entry.source });
+  else syncAuthUi({ kind: 'api_key' });
+  const name = document.getElementById('f-name');
+  const url = document.getElementById('f-url');
+  const models = document.getElementById('f-models');
+  const protocol = document.getElementById('f-protocol');
+  if (name) name.value = entry.kind === 'custom' ? '' : entry.label;
+  if (url) url.value = entry.base_url || '';
+  if (models) models.value = entry.models || '';
+  if (protocol) protocol.value = entry.protocol || '';
+  if (name) name.focus();
 }
 
 // ── State refresh ─────────────────────────────────────────────────────────────
@@ -446,6 +471,13 @@ function wireControls() {
   // Window controls
   document.getElementById('btn-minimize')?.addEventListener('click', () => {
     window.pywebview?.api?.minimize();
+  });
+
+  // Hide to the system tray; the tray icon keeps "Mostrar" and "Sair".
+  document.getElementById('btn-tray')?.addEventListener('click', () => {
+    const api = window.pywebview?.api;
+    if (api?.hide_window) api.hide_window();
+    else toast('Bandeja do sistema indisponível.', 'error');
   });
   document.getElementById('btn-close')?.addEventListener('click', () => {
     const api = window.pywebview?.api;
@@ -535,7 +567,8 @@ function wireControls() {
     if (!providerName) {
       const url = document.getElementById('f-url')?.value?.trim() || '';
       const models = document.getElementById('f-models')?.value?.trim() || '';
-      const saved = await api('add_provider', name, url, '', models, { kind: 'oauth', source }, null);
+      const protocol = document.getElementById('f-protocol')?.value || '';
+      const saved = await api('add_provider', name, url, '', models, { kind: 'oauth', source }, protocol || null);
       if (!saved || !saved.ok) { toast(saved?.error || 'Salve o provedor antes de entrar.', 'error'); return; }
       providerName = name;
     }
@@ -615,7 +648,8 @@ function wireControls() {
     const saveBtn = document.getElementById('btn-save');
     if (saveBtn) saveBtn.disabled = true;
 
-    const res = await api('add_provider', name, url || '', key || '', models, auth, null);
+    const protocol = document.getElementById('f-protocol')?.value || '';
+    const res = await api('add_provider', name, url || '', key || '', models, auth, protocol || null);
 
     if (saveBtn) saveBtn.disabled = false;
 
@@ -657,3 +691,4 @@ if (document.readyState === 'loading') {
   window.addEventListener('pywebviewready', boot, { once: true });
   setTimeout(() => { if (!window.pywebview) boot(); }, 300);
 }
+

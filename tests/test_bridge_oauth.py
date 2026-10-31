@@ -178,3 +178,16 @@ def test_add_provider_oauth_requires_base_url_when_source_has_no_default(bridge)
                               {'kind': 'oauth', 'source': 'cloudflare'})
     assert res['ok'] is False
     assert 'base_url' in res['error']
+
+def test_catalog_lists_oauth_api_and_custom(bridge):
+    catalog = bridge.get_catalog()['catalog']
+    by_id = {entry['id']: entry for entry in catalog}
+    assert by_id['codex']['kind'] == 'oauth'
+    assert by_id['codex']['source'] == 'codex'
+    assert by_id['codex']['protocol'] == 'responses'
+    assert by_id['claude']['protocol'] == 'anthropic'
+    assert by_id['deepseek']['kind'] == 'api_key'
+    assert by_id['deepseek']['base_url'].startswith('https://api.deepseek.com')
+    assert by_id['anthropic']['protocol'] == 'anthropic'
+    assert by_id['custom']['kind'] == 'custom'
+    assert all(entry['label'] and entry['description'] for entry in catalog)

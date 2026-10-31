@@ -47,6 +47,9 @@ def main():
 
     bridge = Bridge()
 
+    # "--tray" abre direto na bandeja (sem janela), para atalho do menu Iniciar.
+    start_hidden = any(arg in sys.argv for arg in ('--tray', '--hidden'))
+
     window = webview.create_window(
         title='AI Bridge',
         url=_ui_url(),
@@ -57,6 +60,7 @@ def main():
         resizable=True,
         frameless=True,
         easy_drag=False,
+        hidden=start_hidden,
         background_color='#0c0c10',
     )
 

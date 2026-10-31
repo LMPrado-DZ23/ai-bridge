@@ -38,3 +38,26 @@ def test_mode_switch_ui_has_no_second_confirmation_dialog():
     assert "window.confirm(" not in source
     assert "api('activate_target', _currentTarget, mode)" in source
     assert "let _modeSwitchPending = false" in source
+
+def test_tray_button_hides_window_without_quitting():
+    js = (ROOT / "ai_bridge" / "ui" / "app.js").read_text(encoding="utf-8")
+    html = (ROOT / "ai_bridge" / "ui" / "index.html").read_text(encoding="utf-8")
+    assert 'id="btn-tray"' in html
+    assert "btn-tray" in js
+    assert "if (api?.hide_window) api.hide_window()" in js
+
+
+def test_entry_supports_start_hidden_for_tray_shortcut():
+    source = (ROOT / "entry.py").read_text(encoding="utf-8")
+    assert "'--tray'" in source
+    assert "hidden=start_hidden" in source
+
+def test_add_screen_has_provider_catalog_and_protocol():
+    js = (ROOT / "ai_bridge" / "ui" / "app.js").read_text(encoding="utf-8")
+    html = (ROOT / "ai_bridge" / "ui" / "index.html").read_text(encoding="utf-8")
+    assert 'id="provider-catalog"' in html
+    assert 'id="catalog-search"' in html
+    assert 'id="f-protocol"' in html
+    assert "api('get_catalog')" in js
+    assert "applyCatalogEntry" in js
+    assert "protocol || null" in js

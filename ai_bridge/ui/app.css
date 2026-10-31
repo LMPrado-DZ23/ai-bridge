@@ -644,3 +644,29 @@ html, body {
 #ab-resize-grip:hover { opacity: 1; }
 #ab-resize-grip:focus-visible { outline: 2px solid #818cf8; outline-offset: -3px; }
 @media (max-width: 460px) { #ab-resize-grip { width: 18px; height: 18px; } }
+
+/* Catálogo de provedores (menu "Escolha o provedor") */
+.ab-catalog { display: flex; flex-direction: column; gap: 0.25rem; max-height: 190px; overflow-y: auto; }
+.ab-catalog__group {
+  font-size: 0.625rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase;
+  color: rgba(255,255,255,0.32); margin: 0.375rem 0 0.125rem;
+}
+.ab-catalog__item {
+  display: flex; align-items: center; gap: 0.5rem; width: 100%; text-align: left;
+  padding: 0.4rem 0.5rem; border-radius: 0.5rem; cursor: pointer;
+  background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.06);
+  color: #e2e8f0; font-size: 0.75rem; transition: background 0.12s, border-color 0.12s;
+}
+.ab-catalog__item:hover { background: rgba(255,255,255,0.05); border-color: rgba(255,255,255,0.14); }
+.ab-catalog__label { font-weight: 600; white-space: nowrap; }
+.ab-catalog__desc {
+  color: rgba(255,255,255,0.42); font-size: 0.625rem; overflow: hidden;
+  text-overflow: ellipsis; white-space: nowrap; flex: 1; min-width: 0;
+}
+.ab-catalog__badge {
+  font-size: 0.5625rem; padding: 0.05rem 0.35rem; border-radius: 999px;
+  border: 1px solid; white-space: nowrap; flex-shrink: 0;
+}
+.ab-catalog__badge--oauth { color: #8b8cff; border-color: rgba(139,140,255,0.4); }
+.ab-catalog__badge--api_key { color: #43d7e8; border-color: rgba(67,215,232,0.35); }
+.ab-catalog__badge--custom { color: #f0b429; border-color: rgba(240,180,41,0.4); }
