@@ -1,217 +1,134 @@
 # AI Bridge
 
-> Proxy local que conecta Claude Code, Claude Desktop e Codex a qualquer modelo OpenAI-compatible — DeepSeek, GPT-4o, Gemini, Groq, Mistral e mais.
+> Proxy local que conecta Claude Code, Claude Desktop e Codex Desktop a **qualquer provedor de IA** — por API key, variável de ambiente ou **OAuth reaproveitando o login da CLI**.
 
-<div align="center">
+[![CI](https://github.com/LMPrado-DZ23/ai-bridge/actions/workflows/ci.yml/badge.svg)](https://github.com/LMPrado-DZ23/ai-bridge/actions/workflows/ci.yml)
+[![Build](https://github.com/LMPrado-DZ23/ai-bridge/actions/workflows/build.yml/badge.svg)](https://github.com/LMPrado-DZ23/ai-bridge/actions/workflows/build.yml)
 
-![AI Bridge Home](docs/screen-home.svg)
-
-</div>
+<p align="center">
+  <img src="docs/screen-home.png" alt="AI Bridge — destinos e provedores" width="820" />
+</p>
 
 ---
 
 ## O que é
 
-**AI Bridge** é um aplicativo de desktop que roda um proxy HTTP local traduzindo o protocolo Anthropic Messages API (usado por Claude Code, Claude Desktop e Codex) para o formato OpenAI-compatible. Com ele você usa qualquer provedor de LLM no lugar dos modelos Claude — sem modificar as ferramentas.
-
-### Como funciona
+**AI Bridge** é um aplicativo desktop (Windows, macOS e Linux) que roda um proxy HTTP em
+`127.0.0.1` e fala o protocolo de cada cliente:
 
 ```
-Claude Code / Claude Desktop / Codex
-          │  (Anthropic API)
-          ▼
-    AI Bridge Proxy
-     127.0.0.1:38771
-          │  (OpenAI API)
-          ▼
-  DeepSeek / GPT-4o / Gemini / Groq / …
+Claude Code / Claude Desktop ──(Anthropic Messages)──┐
+Codex Desktop ───────────────(OpenAI Responses)──────┤──►  AI Bridge  ──►  Provedor
+Outros clientes ─────────────(OpenAI Chat)───────────┘    127.0.0.1
 ```
 
----
+## Recursos
+
+- **Autenticação em três modos por provedor**
+  - API key no keyring do sistema (nunca em arquivo)
+  - variável de ambiente (`env_key`, estilo DeepSeek Harness)
+  - **OAuth**: reutiliza a sessão de `codex`, `claude`, `gemini`, `gcloud`, `hf`, `wrangler` e `gh`, renova no mesmo endpoint da CLI e grava de volta; se não houver sessão, faz login PKCE com callback local na URL registrada do client
+- **Descoberta automática de modelos** (`GET /models`, fallback `/api/tags` do Ollama) com filtro **só gratuitos**
+- **Importação do DeepSeek Harness** (`~/.dsh/profiles/<perfil>/cordis.patch.yml`) com atualização dos modelos direto na API
+- **Catálogo unificado para o Codex Desktop**: um seletor só, misturando assinaturas OAuth e API keys, com conexão/desconexão reversível
+- **Protocolos**: Anthropic Messages, OpenAI Chat Completions e OpenAI Responses, com *passthrough* de SSE sem retradução
+- **Interface em dois passos**: escolher provedor → autenticar, com prévia dos modelos e barra fixa de ações; bandeja do sistema e atalhos
+- **Testes**: 163 testes offline, sem rede e sem tocar em credenciais reais
+
+<p align="center">
+  <img src="docs/screen-add.png" alt="AI Bridge — assistente de provedor em 2 passos" width="820" />
+</p>
 
 ## Download
 
-| Plataforma | Link |
-|------------|------|
-| **Windows** (.exe) | [⬇ AI-Bridge-Windows.exe](https://github.com/LMPrado-DZ23/ai-bridge/releases/latest/download/AI-Bridge-Windows.exe) |
-| **macOS** (binário) | [⬇ AI-Bridge-macOS](https://github.com/LMPrado-DZ23/ai-bridge/releases/latest/download/AI-Bridge-macOS) |
-| **Linux** (binário) | [⬇ AI-Bridge-Linux](https://github.com/LMPrado-DZ23/ai-bridge/releases/latest/download/AI-Bridge-Linux) |
+Binários gerados pelo GitHub Actions a cada push na `main` (release `latest`):
 
-Ou veja todas as versões na [página de releases](https://github.com/LMPrado-DZ23/ai-bridge/releases).
+| Plataforma | Arquivo | Requisitos |
+|---|---|---|
+| **Windows 10/11 (x64)** | [AI-Bridge-Windows.exe](https://github.com/LMPrado-DZ23/ai-bridge/releases/latest/download/AI-Bridge-Windows.exe) | executável portátil; usa o **WebView2** (já presente no Windows 10/11) |
+| **Linux (x64)** | [AI-Bridge-Linux](https://github.com/LMPrado-DZ23/ai-bridge/releases/latest/download/AI-Bridge-Linux) | build em Ubuntu 22.04; precisa de **GTK3 + WebKitGTK 4.1** (ex.: `libwebkit2gtk-4.1-0`) |
+| **macOS (Apple Silicon)** | [AI-Bridge-macOS](https://github.com/LMPrado-DZ23/ai-bridge/releases/latest/download/AI-Bridge-macOS) | build em `macos-latest` (arm64), **não assinado** — veja abaixo |
 
----
+> Não são instaladores (`.msi`/`.dmg`/`.deb`) e sim **executáveis portáteis**: baixe, coloque em
+> qualquer pasta e execute. No Windows você pode criar um atalho no Menu Iniciar apontando para o `.exe`.
 
-## Interface
+### Observações por sistema
 
-<table>
-<tr>
-<td align="center" width="33%">
+- **Windows**: o `.exe` não é assinado digitalmente, então o SmartScreen pode avisar
+  ("Mais informações → Executar assim mesmo"). O ícone de bandeja funciona e a janela fecha
+  de verdade ao clicar em X.
+- **macOS (Apple Silicon)**: binário sem assinatura/notarização. Na primeira execução use
+  **clique com botão direito → Abrir**, ou remova a quarentena:
+  `xattr -d com.apple.quarantine AI-Bridge-macOS`. Em Macs **Intel**, compile do código-fonte
+  (o binário publicado é arm64).
+- **Linux**: se o WebKitGTK 4.1 não estiver instalado:
+  `sudo apt install libwebkit2gtk-4.1-0` (Ubuntu/Debian) ou o equivalente da sua distro.
+- **Outras arquiteturas** (Windows ARM, Linux ARM): rode do código-fonte.
 
-**Destinos**
+## Rodar do código-fonte (qualquer SO com Python 3.10+)
 
-![Home](docs/screen-home.svg)
+```bash
+git clone https://github.com/LMPrado-DZ23/ai-bridge.git
+cd ai-bridge
+python -m venv .venv
+.venv\Scripts\pip install -r requirements.txt     # Windows
+# source .venv/bin/activate && pip install -r requirements.txt   # macOS/Linux
+.venv\Scripts\python entry.py
+```
 
-Conecte Claude Code, Claude Desktop ou Codex ao proxy
+Testes:
 
-</td>
-<td align="center" width="33%">
-
-**Provedores**
-
-![Providers](docs/screen-providers.svg)
-
-Gerencie múltiplos provedores e seus modelos
-
-</td>
-<td align="center" width="33%">
-
-**Adicionar Provedor**
-
-![Add Provider](docs/screen-add.svg)
-
-Cadastre qualquer API OpenAI-compatible com presets
-
-</td>
-</tr>
-</table>
-
----
+```bash
+python -m pytest tests -q     # 163 passed
+```
 
 ## Provedores suportados
 
-| Provedor | Endpoint padrão | Modelos incluídos |
-|----------|-----------------|-------------------|
-| **DeepSeek** | `api.deepseek.com/v1` | DeepSeek Chat, Reasoner |
-| **OpenAI** | `api.openai.com/v1` | GPT-4o, GPT-4o Mini, o1, o3 Mini |
-| **Groq** | `api.groq.com/openai/v1` | Llama 3.3 70B, Llama 3.1 8B, Gemma 2 9B |
-| **Gemini** | `generativelanguage.googleapis.com/v1beta/openai` | Gemini 2.0 Flash, 2.5 Pro, 2.5 Flash |
-| **Mistral** | `api.mistral.ai/v1` | Mistral Large, Small, Codestral |
-| **OpenRouter** | `openrouter.ai/api/v1` | GPT-4o, Claude Opus 4.5 (via OpenRouter) |
-| **Together** | `api.together.xyz/v1` | Llama 3.3 70B Turbo, Qwen 2.5 Coder 32B |
-| **Ollama** | `localhost:11434/v1` | Llama 3.2, Qwen 2.5 Coder, DeepSeek R1 |
-| **Claude Gateway** | `claude-ss.ia.br/v1` | Claude Sonnet 5, Opus 5.5, Fable 5.1, Haiku 4.5 |
+**API key / variável de ambiente**: DeepSeek, OpenAI, Anthropic, Google Gemini, Groq, Mistral,
+OpenRouter, Together, Ollama (local), Ollama Cloud, Xiaomi MiMo, Moonshot/Kimi, Zhipu GLM,
+xAI Grok, LiteLLM Gateway e **qualquer endpoint OpenAI/Anthropic-compatible**.
 
-Qualquer provedor com API OpenAI-compatible pode ser adicionado manualmente.
-
----
-
-## Autenticação OAuth (sessões das CLIs)
-
-Além de API key, um provedor pode autenticar com **OAuth** reaproveitando a sessão que
-o CLI já gravou — e, quando não existe sessão, o próprio AI Bridge faz o login PKCE no
-navegador (callback em `127.0.0.1/oauth/callback`).
-
-| `source` | CLI | Protocolo |
-|---|---|---|
-| `codex` | `codex login` (ChatGPT) | Responses |
-| `claude` | Claude Code | Anthropic (passthrough) |
-| `gemini` | gemini-cli | Chat |
-| `gcloud` | `gcloud auth application-default login` | Chat (você informa o endpoint) |
-| `huggingface` | `huggingface-cli login` | Chat |
-| `cloudflare` | `wrangler login` | Chat |
-| `copilot` | `gh auth login` | Chat |
-
-Tokens expirados são renovados no mesmo endpoint da CLI e gravados de volta, então CLI
-e bridge seguem com uma sessão só. Detalhes, limitações (Cursor/Windsurf, Amazon Q,
-Cloudflare) e como criar um adaptador novo: [docs/OAUTH.md](docs/OAUTH.md).
-
----
+**OAuth (reaproveita a CLI)**: Codex/ChatGPT, Claude Code, Gemini CLI, gcloud ADC,
+Hugging Face, Cloudflare Wrangler e GitHub Copilot.
 
 ## Destinos suportados
 
 | Destino | Protocolo | Como conecta |
-|---------|-----------|--------------|
-| **Claude Code** | Anthropic | Configura `ANTHROPIC_BASE_URL` + `ANTHROPIC_API_KEY` |
-| **Claude Desktop** | Gateway de inferência 3P | Mantém um perfil reversível em `%LOCALAPPDATA%\\Claude-3p\\configLibrary`; troca de modo em um clique com reinício controlado e validação da janela |
-| **Codex Desktop** | OpenAI Responses API | Configura um provedor local AI Bridge e catálogo JSON absoluto; alterna entre AI Bridge e Invision/provedor original em um clique |
-
----
+|---|---|---|
+| **Claude Code** | Anthropic | `ANTHROPIC_BASE_URL` + `ANTHROPIC_API_KEY` |
+| **Claude Desktop** | gateway 3P | perfil reversível em `%LOCALAPPDATA%\Claude-3p\configLibrary` |
+| **Codex Desktop** | OpenAI Responses | provider local + catálogo JSON unificado, alternável em um clique |
 
 ## Segurança
 
-- **Chaves de API nunca gravadas em disco**: armazenadas no keyring do sistema operacional (Credential Manager no Windows, Keychain no macOS, Secret Service no Linux)
-- **Proxy exclusivamente local**: vinculado a `127.0.0.1` — nunca exposto à rede
-- **Frontend não recebe a chave**: o backend retorna apenas um booleano `has_key` para o UI; a chave real nunca trafega para o lado web
-- **Arquivos de configuração limpos**: `~/.ai-bridge/config.json` contém apenas metadados dos provedores, sem segredos
+- Chaves nunca vão para `~/.ai-bridge/config.json`; ficam no keyring, em variável de ambiente ou no arquivo da própria CLI (OAuth).
+- Proxy exclusivamente em `127.0.0.1`.
+- A UI recebe apenas booleanos de estado (`has_key`, `connected`), nunca o segredo.
+- Login OAuth restrito a loopback, `state` de uso único e servidor encerrado ao final.
 
----
+## Documentação
 
-## Instalação a partir do código-fonte
+- [docs/OAUTH.md](docs/OAUTH.md) — fontes OAuth, refresh, PKCE, limitações e como criar um adaptador.
+- [docs/AUDITORIA.md](docs/AUDITORIA.md) — guia para auditoria independente do repositório.
 
-```bash
-# Requisitos: Python 3.10+
-git clone https://github.com/LMPrado-DZ23/ai-bridge.git
-cd ai-bridge
-
-pip install -r requirements.txt
-python main.py
-```
-
-### Dependências principais
-
-```
-flask          # Proxy HTTP
-httpx          # Chamadas aos provedores
-pywebview      # Janela desktop (Chromium embutido)
-keyring        # Armazenamento seguro de chaves
-```
-
----
-
-## Testes
-
-```bash
-pip install pytest
-python -m pytest tests/ -v
-```
-
-A suíte contém **86 testes automatizados** cobrindo:
-
-- Tradução Anthropic Messages ↔ OpenAI Chat Completions e Responses API
-- Streaming SSE e tool/function calling
-- Validação de provedores, erros de autenticação e timeout sem expor chaves
-- Catálogos multi-provedor para os seletores do Codex Desktop e Claude Desktop
-- Conexão/desconexão reversível, preservação do provedor Invision e configuração TOML
-- Restauração segura de configurações e detecção de instalação dos aplicativos
-
-Validação local mais recente: `86 passed`; `compileall` e `git diff --check` também concluídos sem erros.
-
----
-
-## Estrutura do projeto
+## Estrutura
 
 ```
 ai_bridge/
-├── __init__.py
-├── bridge.py       # Bridge pywebview — métodos JS↔Python
-├── claude_code.py  # Integração Claude Code (env vars)
-├── claude_desktop.py # Integração Claude Desktop (config JSON)
-├── codex.py        # Integração Codex
-├── config.py       # Configuração + keyring
-├── proxy.py        # Servidor Flask (proxy HTTP)
-└── translate.py    # Tradução Anthropic ↔ OpenAI
-
-ui/
-├── index.html      # Interface principal (Tailwind CSS)
-└── assets/
-
-tests/
-└── test_translate.py  # 24 testes unitários
-
-docs/
-├── screen-home.svg
-├── screen-providers.svg
-└── screen-add.svg
+├── proxy.py        # rotas Anthropic/OpenAI e passthrough SSE
+├── oauth.py        # fontes de credencial (codex, claude, gemini, gcloud, hf, cf, copilot)
+├── oauth_login.py  # login PKCE com callback local
+├── discovery.py    # descoberta de modelos e marcação de gratuitos
+├── dsh_import.py   # importação do perfil do DeepSeek Harness
+├── config.py       # provedores, keyring, env_key
+├── codex.py        # integração reversível com o Codex Desktop
+├── claude_code.py  # env vars do Claude Code
+├── claude_desktop.py # perfil do Claude Desktop
+├── bridge.py       # API JS↔Python da interface
+└── ui/             # index.html, app.css, app.js
+tests/              # 163 testes offline
 ```
-
----
 
 ## Licença
 
 MIT
-
----
-
-<div align="center">
-<sub>Feito com Python + Flask + pywebview · Interface inspirada em Vercel / Linear / Stripe</sub>
-</div>
