@@ -354,7 +354,9 @@ class GeminiSource(OAuthSource):
     default_protocol = 'chat'
     token_url = 'https://oauth2.googleapis.com/token'
     callback_url = 'http://localhost:8085/oauth2callback'
-    client_id = ''          # configure em auth.client_id (ou env) — ver docs/OAUTH.md
+    # Client público do gemini-cli; o secret (se exigido) vem de
+    # AI_BRIDGE_GEMINI_CLIENT_SECRET ou auth.client_secret.
+    client_id = '681255809395-oo8ft2oprdrnp9e3aqf6av3hmdib135j.apps.googleusercontent.com'
     client_secret = ''
     scope = ('https://www.googleapis.com/auth/cloud-platform '
              'https://www.googleapis.com/auth/userinfo.email openid email profile')

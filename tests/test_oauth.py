@@ -339,3 +339,24 @@ def test_api_key_provider_env_var_missing(monkeypatch):
     resolved = oauth.resolve(provider)
     assert 'Authorization' not in resolved.headers  # sem chave, sem header vazio
     assert oauth.status(provider)['has_key'] is False
+
+
+def test_gemini_authorize_url_has_default_client():
+    url = oauth.authorize_url(oauth.SOURCES['gemini'], 'http://localhost:8085/oauth2callback',
+                              'st', challenge='x')
+    assert 'client_id=681255809395' in url
+
+
+def test_gemini_begin_builds_url_without_secret():
+    from ai_bridge import oauth_login
+    provider = {'name': 'Gemini Test', 'base_url': '',
+                'auth': {'kind': 'oauth', 'source': 'gemini'}, 'models': []}
+    try:
+        begun = oauth_login.begin(provider)
+    except ValueError as exc:
+        # porta 8085 ocupada no ambiente de teste: aceitável
+        assert '8085' in str(exc)
+        return
+    assert begun['redirect_uri'] == 'http://localhost:8085/oauth2callback'
+    assert 'code_challenge=' in begun['url']
+    oauth_login.cancel(begun['state'])

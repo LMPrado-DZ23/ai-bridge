@@ -40,6 +40,21 @@ def _brand_icon_path() -> Path:
     return base / 'ai_bridge' / 'ui' / 'assets' / 'icons' / 'ai-bridge.ico'
 
 
+def _work_area() -> tuple[int, int] | None:
+    """Área útil da tela (sem a barra de tarefas), para não abrir fora do monitor."""
+    if sys.platform != 'win32':
+        return None
+    try:
+        import ctypes
+        from ctypes import wintypes
+        rect = wintypes.RECT()
+        if not ctypes.windll.user32.SystemParametersInfoW(0x0030, 0, ctypes.byref(rect), 0):
+            return None
+        return (rect.right - rect.left, rect.bottom - rect.top)
+    except Exception:
+        return None
+
+
 def _set_app_user_model_id():
     """Agrupa a janela com o próprio app no Windows (ícone/nome da barra)."""
     if sys.platform != 'win32':
@@ -86,13 +101,21 @@ def main():
     # "--tray" abre direto na bandeja (sem janela), para atalho do menu Iniciar.
     start_hidden = any(arg in sys.argv for arg in ('--tray', '--hidden'))
 
+    # Janela alta e estreita (destinos um embaixo do outro), limitada à área útil
+    # do monitor para nunca abrir parte fora da tela.
+    width, height = 680, 1516
+    area = _work_area()
+    if area:
+        width = min(width, max(560, area[0] - 40))
+        height = min(height, max(520, area[1] - 40))
+
     window = webview.create_window(
         title='AI Bridge',
         url=_ui_url(),
         js_api=bridge,
-        width=776,
-        height=850,
-        min_size=(680, 600),
+        width=width,
+        height=height,
+        min_size=(560, 480),
         resizable=True,
         frameless=True,
         easy_drag=False,

@@ -437,6 +437,13 @@ select.ab-input { appearance: none; background-image: linear-gradient(45deg, tra
   .ab-sidebar { padding: 12px 8px; }
   .ab-sidebar__brandtext span { display: none; }
   .ab-main { padding: 16px 14px 24px; }
+  /* Janela estreita: um destino por linha, como uma lista vertical. */
+  .ab-target-grid { grid-template-columns: 1fr; }
+  .ab-target-card { flex-direction: row; align-items: center; gap: 12px; padding: 14px; }
+  .ab-target-card__icon { width: 38px; height: 38px; }
+  .ab-target-card__status { flex-shrink: 0; }
+  .ab-page-head { flex-direction: column; gap: 10px; }
+  .ab-stat-row { align-self: flex-start; }
 }
 @media (prefers-reduced-motion: reduce) {
   * { animation: none !important; transition: none !important; }
