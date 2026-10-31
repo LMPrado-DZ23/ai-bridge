@@ -259,3 +259,29 @@ def test_maximize_window_toggles_state():
     assert first == {'ok': True, 'state': 'maximized'}
     assert second == {'ok': True, 'state': 'normal'}
     assert fake.calls == ['maximize', 'restore']
+
+
+def test_set_window_geometry_clamps_and_moves():
+    class FakeWindow:
+        def __init__(self):
+            self.ops = []
+        def move(self, x, y):
+            self.ops.append(('move', x, y))
+        def resize(self, w, h):
+            self.ops.append(('resize', w, h))
+
+    b = bridge_mod.Bridge()
+    fake = FakeWindow()
+    b.set_window(fake)
+    res = b.set_window_geometry(10, 20, 100, 100)
+    assert res['ok'] is True
+    assert fake.ops == [('move', 10, 20), ('resize', 560, 480)]
+
+
+def test_edge_resize_zones_in_ui():
+    root = Path(__file__).resolve().parents[1]
+    html = (root / "ai_bridge" / "ui" / "index.html").read_text(encoding="utf-8")
+    js = (root / "ai_bridge" / "ui" / "app.js").read_text(encoding="utf-8")
+    for direction in ("n", "s", "e", "w", "ne", "nw", "se", "sw"):
+        assert f'data-resize="{direction}"' in html
+    assert "set_window_geometry" in js and "get_window_geometry" in js

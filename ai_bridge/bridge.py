@@ -326,6 +326,29 @@ class Bridge:
         except Exception as exc:
             return {'ok': False, 'error': str(exc)}
 
+    def get_window_geometry(self):
+        """Posição e tamanho atuais da janela (para redimensionar pelas bordas)."""
+        if not self._window:
+            return {'ok': False, 'error': 'janela indisponível'}
+        try:
+            return {'ok': True, 'x': int(self._window.x), 'y': int(self._window.y),
+                    'width': int(self._window.width), 'height': int(self._window.height)}
+        except Exception as exc:
+            return {'ok': False, 'error': str(exc)}
+
+    def set_window_geometry(self, x, y, width, height):
+        """Move e redimensiona respeitando o tamanho mínimo."""
+        if not self._window:
+            return {'ok': False, 'error': 'janela indisponível'}
+        try:
+            w = max(560, int(width))
+            h = max(480, int(height))
+            self._window.move(int(x), int(y))
+            self._window.resize(w, h)
+            return {'ok': True, 'x': int(x), 'y': int(y), 'width': w, 'height': h}
+        except Exception as exc:
+            return {'ok': False, 'error': str(exc)}
+
     def resize_window(self, width, height):
         """Resize the frameless desktop window within a usable minimum size."""
         if not self._window:

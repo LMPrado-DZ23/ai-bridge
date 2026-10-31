@@ -103,3 +103,10 @@ def test_add_provider_button_is_wired():
     html = (ROOT / "ai_bridge" / "ui" / "index.html").read_text(encoding="utf-8")
     assert 'id="btn-add-sidebar"' in html
     assert "btn-add-sidebar" in js and "go('add')" in js
+
+
+def test_tray_menu_has_status_item():
+    entry = (Path(__file__).resolve().parents[1] / "entry.py").read_text(encoding="utf-8")
+    assert "Abrir AI Bridge" in entry
+    assert "_proxy_status" in entry
+    assert "enabled=False" in entry

@@ -137,12 +137,17 @@ def main():
         def _quit(_icon=None, _item=None):
             bridge.quit()
 
+        def _proxy_status(_item=None):
+            port = proxy.get_port()
+            return f'Proxy ativo · porta {port}' if port else 'Proxy parado'
+
         tray = pystray.Icon(
             'ai-bridge',
             _make_tray_image(),
             'AI Bridge',
             pystray.Menu(
-                pystray.MenuItem('Mostrar', _show, default=True),
+                pystray.MenuItem('Abrir AI Bridge', _show, default=True),
+                pystray.MenuItem(_proxy_status, None, enabled=False),
                 pystray.MenuItem('Sair', _quit),
             ),
         )

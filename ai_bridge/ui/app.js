@@ -695,6 +695,49 @@ function wireControls() {
   }
 
   // Window controls
+  // Redimensionamento pelas bordas/cantos, como um app nativo do Windows.
+  let edgeDrag = null;
+  const EDGE_MIN_W = 560;
+  const EDGE_MIN_H = 480;
+  document.querySelectorAll('[data-resize]').forEach((zone) => {
+    zone.addEventListener('pointerdown', async (event) => {
+      if (event.button !== 0) return;
+      const api = window.pywebview?.api;
+      if (!api?.get_window_geometry || !api?.set_window_geometry) return;
+      event.preventDefault();
+      const geo = await api.get_window_geometry();
+      if (!geo || !geo.ok) return;
+      const dir = zone.dataset.resize;
+      edgeDrag = {
+        dir, startX: event.screenX, startY: event.screenY,
+        x: geo.x, y: geo.y, width: geo.width, height: geo.height,
+      };
+      zone.setPointerCapture(event.pointerId);
+      const onMove = (moveEvent) => {
+        if (!edgeDrag) return;
+        const dx = moveEvent.screenX - edgeDrag.startX;
+        const dy = moveEvent.screenY - edgeDrag.startY;
+        let { x, y, width, height } = edgeDrag;
+        if (dir.includes('e')) width += dx;
+        if (dir.includes('s')) height += dy;
+        if (dir.includes('w')) { width -= dx; x += dx; }
+        if (dir.includes('n')) { height -= dy; y += dy; }
+        if (width < EDGE_MIN_W) { if (dir.includes('w')) x -= (EDGE_MIN_W - width); width = EDGE_MIN_W; }
+        if (height < EDGE_MIN_H) { if (dir.includes('n')) y -= (EDGE_MIN_H - height); height = EDGE_MIN_H; }
+        api.set_window_geometry(Math.round(x), Math.round(y), Math.round(width), Math.round(height));
+      };
+      const onUp = () => {
+        edgeDrag = null;
+        zone.removeEventListener('pointermove', onMove);
+        zone.removeEventListener('pointerup', onUp);
+        zone.removeEventListener('pointercancel', onUp);
+      };
+      zone.addEventListener('pointermove', onMove);
+      zone.addEventListener('pointerup', onUp);
+      zone.addEventListener('pointercancel', onUp);
+    });
+  });
+
   document.getElementById('btn-minimize')?.addEventListener('click', () => {
     window.pywebview?.api?.minimize();
   });

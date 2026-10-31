@@ -358,14 +358,14 @@ select.ab-input { appearance: none; background-image: linear-gradient(45deg, tra
 .ab-catalog { display: flex; flex-direction: column; gap: 2px; max-height: 420px; overflow-y: auto; margin-top: 2px; }
 .ab-catalog__group { margin: 8px 0 3px; font-size: 9.5px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--faint); }
 .ab-catalog__item {
-  display: flex; align-items: center; gap: 8px; width: 100%; text-align: left;
-  padding: 8px 9px; border-radius: 9px; border: 1px solid transparent;
+  display: flex; align-items: center; gap: 8px; width: 100%; min-width: 0;
+  text-align: left; padding: 8px 9px; border-radius: 9px; border: 1px solid transparent;
   background: transparent; color: var(--text); font-size: 12px; cursor: pointer;
   transition: background 0.1s, border-color 0.1s;
 }
 .ab-catalog__item:hover { background: rgba(255, 255, 255, 0.05); border-color: var(--line); }
-.ab-catalog__label { font-weight: 600; white-space: nowrap; }
-.ab-catalog__desc { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 10.5px; color: var(--faint); }
+.ab-catalog__label { font-weight: 600; min-width: 0; overflow-wrap: anywhere; }
+.ab-catalog__desc { flex: 1 1 140px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 10.5px; color: var(--faint); }
 .ab-catalog__badge {
   flex-shrink: 0; font-size: 9.5px; font-weight: 600; padding: 1px 7px; border-radius: 999px;
   border: 1px solid transparent; color: var(--muted); background: rgba(255, 255, 255, 0.05);
@@ -451,4 +451,20 @@ select.ab-input { appearance: none; background-image: linear-gradient(45deg, tra
 }
 @media (prefers-reduced-motion: reduce) {
   * { animation: none !important; transition: none !important; }
+}
+
+/* ── Bordas de redimensionamento (janela frameless) ───────────────────── */
+.ab-edge { position: fixed; z-index: 45; }
+.ab-edge--n { top: 0; left: 8px; right: 8px; height: 6px; cursor: ns-resize; }
+.ab-edge--s { bottom: 0; left: 8px; right: 8px; height: 6px; cursor: ns-resize; }
+.ab-edge--e { top: 8px; right: 0; bottom: 8px; width: 6px; cursor: ew-resize; }
+.ab-edge--w { top: 8px; left: 0; bottom: 8px; width: 6px; cursor: ew-resize; }
+.ab-edge--ne { top: 0; right: 0; width: 12px; height: 12px; cursor: nesw-resize; }
+.ab-edge--nw { top: 0; left: 0; width: 12px; height: 12px; cursor: nwse-resize; }
+.ab-edge--se { bottom: 0; right: 0; width: 14px; height: 14px; cursor: nwse-resize; }
+.ab-edge--sw { bottom: 0; left: 0; width: 12px; height: 12px; cursor: nesw-resize; }
+@media (max-width: 760px) {
+  .ab-catalog__item { flex-wrap: wrap; row-gap: 2px; }
+  .ab-catalog__desc { flex-basis: 100%; white-space: normal; overflow: visible; text-overflow: clip; }
+  .ab-catalog__label { white-space: normal; }
 }
