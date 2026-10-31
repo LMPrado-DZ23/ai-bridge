@@ -240,3 +240,22 @@ def test_cookie_editor_shortcut_in_ui():
     assert 'id="btn-cookie-editor"' in html
     assert "ookdjilphngeeeghgngjabigmpepanpl" in js
     assert "open_external" in js
+
+
+def test_maximize_window_toggles_state():
+    class FakeWindow:
+        def __init__(self):
+            self.calls = []
+        def maximize(self):
+            self.calls.append('maximize')
+        def restore(self):
+            self.calls.append('restore')
+
+    b = bridge_mod.Bridge()
+    fake = FakeWindow()
+    b.set_window(fake)
+    first = b.maximize_window()
+    second = b.maximize_window()
+    assert first == {'ok': True, 'state': 'maximized'}
+    assert second == {'ok': True, 'state': 'normal'}
+    assert fake.calls == ['maximize', 'restore']

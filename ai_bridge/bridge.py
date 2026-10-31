@@ -311,6 +311,21 @@ class Bridge:
         if self._window:
             self._window.minimize()
 
+    def maximize_window(self):
+        """Alterna maximizar/restaurar usando a API nativa do pywebview."""
+        if not self._window:
+            return {'ok': False, 'error': 'janela indisponível'}
+        try:
+            if getattr(self, '_maximized', False):
+                self._window.restore()
+                self._maximized = False
+                return {'ok': True, 'state': 'normal'}
+            self._window.maximize()
+            self._maximized = True
+            return {'ok': True, 'state': 'maximized'}
+        except Exception as exc:
+            return {'ok': False, 'error': str(exc)}
+
     def resize_window(self, width, height):
         """Resize the frameless desktop window within a usable minimum size."""
         if not self._window:

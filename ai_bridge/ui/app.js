@@ -643,7 +643,18 @@ function wireControls() {
     api.resize_window(width, height).catch(() => toast('Não foi possível redimensionar a janela.', 'error'));
   };
   document.getElementById('btn-smaller')?.addEventListener('click', () => resizeBy(-80));
-  document.getElementById('btn-larger')?.addEventListener('click', () => resizeBy(80));
+  const toggleMaximize = async () => {
+    const api = window.pywebview?.api;
+    if (!api?.maximize_window) { resizeBy(80); return; }
+    const res = await api.maximize_window();
+    if (!res || !res.ok) resizeBy(80);
+  };
+  document.getElementById('btn-larger')?.addEventListener('click', toggleMaximize);
+  // Duplo clique na barra de título maximiza/restaura, como nos apps nativos.
+  document.querySelector('.ab-titlebar')?.addEventListener('dblclick', (event) => {
+    if (event.target.closest('button')) return;
+    toggleMaximize();
+  });
 
   // Frameless windows do not expose a native resize border; use this corner grip.
   const resizeGrip = document.getElementById('ab-resize-grip');
