@@ -52,8 +52,16 @@ def _record_request(path: str, method: str, status: int, duration_ms: float):
         del _METRICS['events'][:-_EVENT_LIMIT]
 
 
+def _is_loopback_host(host_header: str) -> bool:
+    """Aceita apenas Host local: evita acesso/exposição por outro nome de máquina."""
+    host = (host_header or '').split(':')[0].strip('[]').lower()
+    return host in ('127.0.0.1', 'localhost', '::1')
+
+
 @app.before_request
 def _metrics_before():
+    if not _is_loopback_host(request.host):
+        return jsonify({'error': {'message': 'host não permitido; use 127.0.0.1', 'type': 'invalid_request_error'}}), 403
     g._ab_started = time.perf_counter()
 
 
