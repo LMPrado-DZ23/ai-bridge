@@ -84,7 +84,9 @@ def _metrics_after(response):
             if request.method == 'POST' and request.is_json:
                 payload = request.get_json(silent=True) or {}
                 model = str(payload.get('model') or '')
-                provider = model.split('/', 1)[0] if '/' in model else (model or '')
+                explicit = (request.headers.get('X-AI-Bridge-Provider')
+                            or request.args.get('provider') or '').strip()
+                provider = explicit or (model.split('/', 1)[0] if '/' in model else (model or ''))
         except Exception:
             provider, model = '', ''
         duration_ms = (time.perf_counter() - started) * 1000
@@ -132,6 +134,31 @@ def _auth_error(exc: oauth.MissingCredentials):
 
 def _resolve(provider: dict, *, force_refresh: bool = False) -> oauth.ResolvedAuth:
     return oauth.resolve(provider, force_refresh=force_refresh)
+
+
+def _explicit_provider() -> str:
+    """Provedor escolhido por nome: header X-AI-Bridge-Provider ou ?provider=."""
+    return (request.headers.get('X-AI-Bridge-Provider') or request.args.get('provider') or '').strip()
+
+
+def _select_target(model: str, explicit_provider: str = ''):
+    """Resolve (provedor, modelo real).
+
+    Ordem: provedor explícito (nome) > prefixo 'Provedor/modelo' > provedor do
+    modelo. Com provedor explícito, o modelo pode vir sem prefixo.
+    """
+    model = str(model or '')
+    providers = cfg.get_providers()
+    if explicit_provider:
+        wanted = explicit_provider.lower()
+        provider = next((p for p in providers if p['name'].lower() == wanted), None)
+        if provider is not None:
+            prefix = provider['name'].lower() + '/'
+            actual = model[len(prefix):] if model.lower().startswith(prefix) else model
+            return provider, actual or model
+    provider = cfg.get_provider_for_model(model)
+    actual = cfg.get_model_id(model) or (model.split('/', 1)[1] if '/' in model else model)
+    return provider, actual
 
 
 def _post_json(provider: dict, auth: oauth.ResolvedAuth, url: str, payload: dict,
@@ -242,7 +269,7 @@ def messages():
     data = request.get_json(force=True, silent=True) or {}
     model = data.get('model', '')
 
-    provider = cfg.get_provider_for_model(model)
+    provider, _actual_model = _select_target(model, _explicit_provider())
     if provider is None:
         return jsonify({
             'type': 'error',
@@ -254,7 +281,7 @@ def messages():
     except oauth.MissingCredentials as exc:
         return _auth_error(exc)
 
-    actual_model = cfg.get_model_id(model) or (model.split('/', 1)[1] if '/' in model else model)
+    actual_model = _actual_model
     stream = data.get('stream', False)
 
     # Provider speaks Anthropic natively (ex.: Claude Code OAuth): pass through.
@@ -401,7 +428,7 @@ def responses():
     from . import responses_api
     data = request.get_json(force=True, silent=True) or {}
     model = str(data.get('model', ''))
-    provider = cfg.get_provider_for_model(model)
+    provider, _actual_model = _select_target(model, _explicit_provider())
     if provider is None:
         return jsonify({
             'error': {'message': f'Model not found in AI Bridge: {model}', 'type': 'invalid_request_error'}
@@ -463,7 +490,7 @@ def chat_completions():
     data = request.get_json(force=True, silent=True) or {}
     model = data.get('model', '')
 
-    provider = cfg.get_provider_for_model(model)
+    provider, _actual_model = _select_target(model, _explicit_provider())
     if provider is None:
         return jsonify({
             'error': {
@@ -473,7 +500,7 @@ def chat_completions():
             }
         }), 404
 
-    actual_model = cfg.get_model_id(model) or (model.split('/', 1)[1] if '/' in model else model)
+    actual_model = _actual_model
     req = {**data, 'model': actual_model}
 
     try:

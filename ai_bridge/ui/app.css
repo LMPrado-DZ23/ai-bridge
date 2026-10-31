@@ -238,7 +238,8 @@ button { font-family: inherit; }
   padding: 16px; border-radius: var(--radius-lg); border: 1px solid var(--line); background: var(--panel);
 }
 .ab-pane--catalog { position: sticky; top: 0; }
-.ab-pane__head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.ab-pane__head { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.ab-pane__head .ab-btn { max-width: 100%; white-space: normal; height: auto; min-height: 30px; padding-top: 5px; padding-bottom: 5px; }
 
 .ab-field { display: flex; flex-direction: column; gap: 6px; }
 .ab-field__head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
@@ -355,9 +356,9 @@ select.ab-input { appearance: none; background-image: linear-gradient(45deg, tra
 .ab-iconbtn:hover { background: rgba(255, 255, 255, 0.08); color: var(--text); }
 
 /* Catalog */
-.ab-catalog { display: flex; flex-direction: column; gap: 2px; max-height: 420px; overflow-y: auto; margin-top: 2px; }
+.ab-catalog { display: flex; flex-direction: column; gap: 2px; max-height: 420px; overflow-y: auto; overflow-x: hidden; margin-top: 2px; width: 100%; }
 .ab-catalog__group { margin: 8px 0 3px; font-size: 9.5px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--faint); }
-.ab-catalog__item {
+.ab-catalog__item { min-width: 0; box-sizing: border-box;
   display: flex; align-items: center; gap: 8px; width: 100%; min-width: 0;
   text-align: left; padding: 8px 9px; border-radius: 9px; border: 1px solid transparent;
   background: transparent; color: var(--text); font-size: 12px; cursor: pointer;
@@ -365,7 +366,7 @@ select.ab-input { appearance: none; background-image: linear-gradient(45deg, tra
 }
 .ab-catalog__item:hover { background: rgba(255, 255, 255, 0.05); border-color: var(--line); }
 .ab-catalog__label { font-weight: 600; min-width: 0; overflow-wrap: anywhere; }
-.ab-catalog__desc { flex: 1 1 140px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 10.5px; color: var(--faint); }
+.ab-catalog__desc { flex: 1 1 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 10.5px; color: var(--faint); }
 .ab-catalog__badge {
   flex-shrink: 0; font-size: 9.5px; font-weight: 600; padding: 1px 7px; border-radius: 999px;
   border: 1px solid transparent; color: var(--muted); background: rgba(255, 255, 255, 0.05);
