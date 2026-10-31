@@ -1,0 +1,53 @@
+name: Build Windows Installer
+
+# Manual apenas: não publica release nem sobrescreve o binário portátil.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  installer:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt pyinstaller
+
+      - name: Run tests
+        run: python -m pytest tests/ -q
+
+      - name: Build portable executable
+        run: python -m PyInstaller build.spec --noconfirm --clean
+
+      - name: Install NSIS
+        run: choco install nsis -y --no-progress
+
+      - name: Build installer
+        run: |
+          New-Item -ItemType Directory -Force -Path dist | Out-Null
+          & "C:\Program Files (x86)\NSIS\makensis.exe" installer\ai-bridge.nsi
+
+      - name: Verify installer
+        run: |
+          $exe = "dist\AI-Bridge-Setup.exe"
+          if (-not (Test-Path $exe)) { throw "instalador não gerado" }
+          if ((Get-Item $exe).Length -lt 1MB) { throw "instalador pequeno demais" }
+          Get-FileHash $exe -Algorithm SHA256 | Tee-Object -Append dist\SHA256SUMS.txt
+
+      - name: Upload installer artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: AI-Bridge-Setup
+          path: |
+            dist/AI-Bridge-Setup.exe
+            dist/SHA256SUMS.txt
+          retention-days: 30
