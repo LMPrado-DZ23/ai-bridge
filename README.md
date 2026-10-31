@@ -110,6 +110,7 @@ Hugging Face, Cloudflare Wrangler e GitHub Copilot.
 
 - [docs/OAUTH.md](docs/OAUTH.md) — fontes OAuth, refresh, PKCE, limitações e como criar um adaptador.
 - [docs/AUDITORIA.md](docs/AUDITORIA.md) — guia para auditoria independente do repositório.
+- [docs/COMPATIBILITY.md](docs/COMPATIBILITY.md) — matriz de capacidades por provedor (só anuncia o que foi verificado).
 
 ## Estrutura
 
