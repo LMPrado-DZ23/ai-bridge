@@ -13,6 +13,8 @@ from . import claude_code
 from . import claude_desktop
 from . import codex as codex_mod
 from . import launchers
+from . import oauth
+from . import oauth_login
 
 _PRESETS = [
     {
@@ -66,6 +68,35 @@ _PRESETS = [
             'claude-opus-5|Claude Opus 5\n'
             'gpt-6-astra|GPT-6 Astra'
         ),
+    },
+    # ── Presets OAuth (reaproveitam a sessão da CLI) ──────────────────────────
+    {
+        'name': 'Codex (OAuth)',
+        'base_url': '',
+        'auth': {'kind': 'oauth', 'source': 'codex'},
+        'protocol': 'responses',
+        'models': 'gpt-6-luna|GPT-6 Luna\ngpt-5.6-luna|GPT-5.6 Luna\ngpt-reserve|GPT Reserve',
+    },
+    {
+        'name': 'Claude Code (OAuth)',
+        'base_url': '',
+        'auth': {'kind': 'oauth', 'source': 'claude'},
+        'protocol': 'anthropic',
+        'models': 'claude-sonnet-5|Claude Sonnet 5\nclaude-opus-5|Claude Opus 5',
+    },
+    {
+        'name': 'Gemini (OAuth)',
+        'base_url': '',
+        'auth': {'kind': 'oauth', 'source': 'gemini'},
+        'protocol': 'chat',
+        'models': 'gemini-2.5-pro|Gemini 2.5 Pro\ngemini-2.5-flash|Gemini 2.5 Flash',
+    },
+    {
+        'name': 'Hugging Face (OAuth)',
+        'base_url': '',
+        'auth': {'kind': 'oauth', 'source': 'huggingface'},
+        'protocol': 'chat',
+        'models': 'meta-llama/Llama-3.3-70B-Instruct|Llama 3.3 70B',
     },
 ]
 
@@ -197,6 +228,11 @@ class Bridge:
                         {'id': m['id'], 'label': m.get('label', m['id'])}
                         for m in p.get('models', [])
                     ],
+                    'auth': oauth.status(p),
+                    'protocol': p.get('protocol', '') or (
+                        oauth.get_source(str((p.get('auth') or {}).get('source', 'codex'))).default_protocol
+                        if oauth.is_oauth(p) else 'chat'
+                    ),
                 }
                 for p in providers
             ]
@@ -242,33 +278,51 @@ class Bridge:
                         'base_url': p['base_url'],
                         'models_raw': models_raw,
                         'has_key': bool(stored_key),
+                        'auth': p.get('auth') or {'kind': 'api_key'},
+                        'auth_status': oauth.status(p),
+                        'protocol': p.get('protocol', ''),
                         # api_key is intentionally NEVER returned to the frontend
                     }
             return {'ok': False, 'error': f'Provedor "{name}" não encontrado'}
         except Exception as e:
             return {'ok': False, 'error': str(e)}
 
-    def add_provider(self, name: str, base_url: str, api_key: str, models_raw: str) -> dict:
+    def add_provider(self, name: str, base_url: str, api_key: str, models_raw: str,
+                     auth: dict = None, protocol: str = '') -> dict:
         with self._lock:
             try:
                 name = name.strip()
-                base_url = base_url.strip().rstrip('/')
-                api_key = api_key.strip()
+                base_url = (base_url or '').strip().rstrip('/')
+                api_key = (api_key or '').strip()
+                is_oauth = bool(auth) and str(auth.get('kind', '')).lower() == 'oauth'
 
                 if not name:
                     return {'ok': False, 'error': 'Nome do provedor é obrigatório'}
-                if not base_url:
-                    return {'ok': False, 'error': 'URL base é obrigatória'}
-                if not _is_valid_url(base_url):
-                    return {'ok': False, 'error': 'URL inválida. Use o formato https://api.example.com/v1'}
+                if is_oauth:
+                    # OAuth: a URL é opcional (a fonte define o padrão) e não há chave.
+                    if base_url and not _is_valid_url(base_url):
+                        return {'ok': False, 'error': 'URL inválida. Use o formato https://api.example.com/v1'}
+                    source = str(auth.get('source', '') or '')
+                    try:
+                        source_obj = oauth.get_source(source)
+                    except ValueError as exc:
+                        return {'ok': False, 'error': str(exc)}
+                    if not base_url and not source_obj.default_base_url:
+                        return {'ok': False,
+                                'error': f'{source_obj.label}: informe a base_url do provedor.'}
+                else:
+                    if not base_url:
+                        return {'ok': False, 'error': 'URL base é obrigatória'}
+                    if not _is_valid_url(base_url):
+                        return {'ok': False, 'error': 'URL inválida. Use o formato https://api.example.com/v1'}
 
-                # When editing, a blank key means "keep the existing key"
-                if not api_key:
-                    existing = next((p for p in cfg.get_providers() if p['name'] == name), None)
-                    if existing:
-                        api_key = existing.get('api_key', '')
-                if not api_key:
-                    return {'ok': False, 'error': 'Chave de API é obrigatória'}
+                    # When editing, a blank key means "keep the existing key"
+                    if not api_key:
+                        existing = next((p for p in cfg.get_providers() if p['name'] == name), None)
+                        if existing:
+                            api_key = existing.get('api_key', '')
+                    if not api_key:
+                        return {'ok': False, 'error': 'Chave de API é obrigatória'}
 
                 models = []
                 for line in models_raw.strip().splitlines():
@@ -284,7 +338,9 @@ class Bridge:
                 if not models:
                     return {'ok': False, 'error': 'Adicione pelo menos um modelo'}
 
-                cfg.add_provider(name, base_url, api_key, models)
+                cfg.add_provider(name, base_url, api_key, models,
+                                 auth=auth if is_oauth else None,
+                                 protocol=protocol or None)
                 self._sync_connected_targets()
                 restart_required_targets = []
                 if claude_code.is_connected():
@@ -341,7 +397,31 @@ class Bridge:
             codex_mod.disconnect()
 
     def test_provider(self, base_url: str, api_key: str, provider_name: str = None) -> dict:
-        """Test connectivity. If api_key is blank and provider_name is given, uses the stored key."""
+        """Test connectivity. If api_key is blank and provider_name is given, uses the stored key.
+
+        OAuth providers are validated by resolving the stored CLI session (and
+        refreshing it when expired) instead of probing ``/models``, which most
+        OAuth-backed endpoints do not expose.
+        """
+        if provider_name:
+            provider = cfg.get_provider(provider_name)
+            if provider and oauth.is_oauth(provider):
+                try:
+                    resolved = oauth.resolve(provider, force_refresh=True)
+                except oauth.MissingCredentials as exc:
+                    return {'ok': False, 'error': str(exc), 'auth_required': True}
+                except Exception as exc:  # noqa: BLE001 - surfaced in the UI
+                    return {'ok': False, 'error': str(exc)}
+                return {
+                    'ok': True,
+                    'oauth': True,
+                    'source': resolved.source,
+                    'protocol': resolved.protocol,
+                    'base_url': resolved.base_url,
+                    'account_id': resolved.account_id,
+                    'message': 'Sessão OAuth válida (token renovado se necessário).',
+                }
+
         if not api_key and provider_name:
             api_key = cfg.get_api_key(provider_name) or ''
         if not api_key:
@@ -391,6 +471,59 @@ class Bridge:
             return {'ok': False, 'error': 'Timeout ao conectar.'}
         except Exception as e:
             return {'ok': False, 'error': str(e)}
+
+    # ── OAuth ────────────────────────────────────────────────────────────────
+
+    def oauth_status(self, name: str) -> dict:
+        """Report whether an OAuth provider has a usable session (never the token)."""
+        provider = cfg.get_provider(name)
+        if not provider:
+            return {'ok': False, 'error': f'Provedor "{name}" não encontrado'}
+        return {'ok': True, 'auth': oauth.status(provider)}
+
+    def reauth_oauth(self, name: str) -> dict:
+        """Renew the session now; if the refresh fails, start a fresh login."""
+        provider = cfg.get_provider(name)
+        if not provider or not oauth.is_oauth(provider):
+            return {'ok': False, 'error': 'Provedor OAuth não encontrado'}
+        try:
+            auth = oauth.resolve(provider, force_refresh=True)
+        except oauth.MissingCredentials:
+            fallback = self.get_oauth_login_url(name)
+            if fallback.get('ok'):
+                fallback['message'] = 'Sessão expirada — login aberto no navegador.'
+            return fallback
+        except Exception as exc:  # noqa: BLE001 - surfaced in the UI
+            return {'ok': False, 'error': str(exc)}
+        return {
+            'ok': True,
+            'renewed': True,
+            'source': auth.source,
+            'protocol': auth.protocol,
+            'account_id': auth.account_id,
+            'message': 'Sessão renovada.',
+        }
+
+    def get_oauth_login_url(self, name: str) -> dict:
+        """Start the bridge's own PKCE login and open the browser."""
+        provider = cfg.get_provider(name)
+        if not provider or not oauth.is_oauth(provider):
+            return {'ok': False, 'error': 'Provedor OAuth não encontrado'}
+        port = proxy.get_port() or cfg.get_port()
+        redirect_uri = f'http://127.0.0.1:{port}/oauth/callback'
+        try:
+            begun = oauth_login.begin(provider, redirect_uri)
+        except ValueError as exc:
+            return {'ok': False, 'error': str(exc)}
+        webbrowser.open(begun['url'])
+        return {
+            'ok': True,
+            'url': begun['url'],
+            'state': begun['state'],
+            'source': begun['source'],
+            'redirect_uri': redirect_uri,
+            'hint': 'Conclua o login no navegador; o AI Bridge recebe o código no callback local.',
+        }
 
     # ── Multi-target connect ─────────────────────────────────────────────────
 

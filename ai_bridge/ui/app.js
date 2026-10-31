@@ -191,17 +191,50 @@ function renderProviders() {
 
   container.innerHTML = providers.map(p => {
     const modelCount = (p.models || []).length;
+    const auth = p.auth || { kind: 'api_key' };
+    const authLabel = auth.kind === 'oauth'
+      ? `OAuth · ${escHtml(auth.source || '')}${auth.connected ? ' ✓' : ' — sem sessão'}`
+      : 'API key';
+    const loginBtn = (auth.kind === 'oauth' && !auth.connected)
+      ? `<button class="btn btn-ghost btn-sm" data-login="${escHtml(p.name)}">Entrar</button>` : '';
+    const reauthBtn = (auth.kind === 'oauth' && auth.connected)
+      ? `<button class="btn btn-ghost btn-sm" data-reauth="${escHtml(p.name)}">Reautenticar</button>` : '';
     return `<div class="ab-provider-item">
       <div class="ab-provider-item__info">
         <div class="ab-provider-item__name">${escHtml(p.name)}</div>
-        <div class="ab-provider-item__sub">${escHtml(p.base_url || '')}${modelCount ? ` · ${modelCount} modelo${modelCount !== 1 ? 's' : ''}` : ''}</div>
+        <div class="ab-provider-item__sub">${escHtml(p.base_url || '')}${modelCount ? ` · ${modelCount} modelo${modelCount !== 1 ? 's' : ''}` : ''} · ${authLabel}</div>
       </div>
       <div class="ab-provider-item__actions">
+        ${loginBtn}
+        ${reauthBtn}
         <button class="btn btn-ghost btn-sm" data-edit="${escHtml(p.name)}">Editar</button>
         <button class="btn btn-ghost btn-sm ab-btn-danger" data-remove="${escHtml(p.name)}">Remover</button>
       </div>
     </div>`;
   }).join('');
+
+  container.querySelectorAll('[data-login]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      btn.disabled = true;
+      const res = await api('get_oauth_login_url', btn.dataset.login);
+      btn.disabled = false;
+      if (res && res.ok) toast('Login aberto no navegador. Conclua e volte ao AI Bridge.', 'success');
+      else toast(res?.error || 'Não foi possível iniciar o login.', 'error');
+    });
+  });
+
+  container.querySelectorAll('[data-reauth]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      btn.disabled = true;
+      const res = await api('reauth_oauth', btn.dataset.reauth);
+      btn.disabled = false;
+      if (res && res.ok && res.renewed) toast('Sessão renovada.', 'success');
+      else if (res && res.ok && res.url) toast('Sessão expirada — login aberto no navegador.', 'info');
+      else toast(res?.error || 'Falha ao reautenticar.', 'error');
+      await refresh();
+      renderProviders();
+    });
+  });
 
   container.querySelectorAll('[data-edit]').forEach(btn => {
     btn.addEventListener('click', () => go('add', btn.dataset.edit));
@@ -248,6 +281,7 @@ async function renderAdd(editName) {
   if (form) form.reset();
   const testResult = document.getElementById('test-result');
   if (testResult) { testResult.hidden = true; testResult.textContent = ''; }
+  syncAuthUi(null);
 
   // Load presets
   const presetList = document.getElementById('preset-list');
@@ -272,6 +306,7 @@ async function renderAdd(editName) {
         if (fModels) fModels.value = (pres.models || []).map(m =>
           typeof m === 'string' ? m : `${m.id}|${m.name}`
         ).join('\n');
+        syncAuthUi(pres.auth || { kind: 'api_key' });
       });
     });
   }
@@ -296,7 +331,35 @@ async function renderAdd(editName) {
       if (fModels) fModels.value = detail.models_raw || (detail.models || []).map(m =>
         typeof m === 'string' ? m : `${m.id}|${m.label || m.name || m.id}`
       ).join('\n');
+      syncAuthUi({ ...(detail.auth || { kind: 'api_key' }), status: detail.auth_status });
     }
+  }
+}
+
+// ── OAuth helpers ────────────────────────────────────────────────────────────
+
+function currentAuth() {
+  const kind = document.getElementById('f-auth-kind')?.value || 'api_key';
+  if (kind !== 'oauth') return null;
+  return { kind: 'oauth', source: document.getElementById('f-oauth-source')?.value || 'codex' };
+}
+
+function syncAuthUi(auth) {
+  const kind = (auth && auth.kind === 'oauth') ? 'oauth' : 'api_key';
+  const kindSel = document.getElementById('f-auth-kind');
+  if (kindSel) kindSel.value = kind;
+  if (auth && auth.source) {
+    const srcSel = document.getElementById('f-oauth-source');
+    if (srcSel) srcSel.value = auth.source;
+  }
+  document.getElementById('f-key-row')?.classList.toggle('hidden', kind === 'oauth');
+  document.getElementById('f-oauth-row')?.classList.toggle('hidden', kind !== 'oauth');
+  const statusEl = document.getElementById('oauth-status');
+  if (statusEl) {
+    const st = auth && auth.status;
+    if (kind !== 'oauth') statusEl.textContent = '';
+    else if (st && st.connected) statusEl.textContent = `Sessão encontrada (${st.source})${st.expired ? ' — expirada, será renovada' : ''}`;
+    else statusEl.textContent = 'Sem sessão — use “Entrar com…” ou faça login na CLI.';
   }
 }
 
@@ -458,6 +521,34 @@ function wireControls() {
   // Go to providers from target screen
   document.getElementById('btn-go-providers-from-target')?.addEventListener('click', () => go('providers'));
 
+  // Auth mode (API key vs OAuth)
+  document.getElementById('f-auth-kind')?.addEventListener('change', (e) => {
+    syncAuthUi({ kind: e.target.value, source: document.getElementById('f-oauth-source')?.value });
+  });
+
+  // Start the bridge's own OAuth login (saves the provider first when it is new)
+  document.getElementById('btn-oauth-login')?.addEventListener('click', async () => {
+    const name = document.getElementById('f-name')?.value?.trim();
+    const source = document.getElementById('f-oauth-source')?.value || 'codex';
+    if (!name) { toast('Informe o nome do provedor antes de entrar.', 'error'); return; }
+    let providerName = _editingProvider;
+    if (!providerName) {
+      const url = document.getElementById('f-url')?.value?.trim() || '';
+      const models = document.getElementById('f-models')?.value?.trim() || '';
+      const saved = await api('add_provider', name, url, '', models, { kind: 'oauth', source }, null);
+      if (!saved || !saved.ok) { toast(saved?.error || 'Salve o provedor antes de entrar.', 'error'); return; }
+      providerName = name;
+    }
+    const res = await api('get_oauth_login_url', providerName);
+    const statusEl = document.getElementById('oauth-status');
+    if (res && res.ok) {
+      if (statusEl) statusEl.textContent = 'Login aberto no navegador — conclua para liberar o provedor.';
+      toast('Login aberto no navegador.', 'success');
+    } else {
+      toast(res?.error || 'Não foi possível iniciar o login OAuth.', 'error');
+    }
+  });
+
   // Show/hide API key
   document.getElementById('btn-show-key')?.addEventListener('click', () => {
     const input = document.getElementById('f-key');
@@ -472,20 +563,24 @@ function wireControls() {
   document.getElementById('btn-test')?.addEventListener('click', async () => {
     const url = document.getElementById('f-url')?.value?.trim();
     const key = document.getElementById('f-key')?.value?.trim();
+    const auth = currentAuth();
     const btn = document.getElementById('btn-test');
     const resultEl = document.getElementById('test-result');
     const importBtn = document.getElementById('btn-import-models');
-    if (!url) { toast('Preencha a URL antes de testar.', 'error'); return; }
-    if (!key && !_editingProvider) { toast('Preencha a chave antes de testar.', 'error'); return; }
+    if (!auth && !url) { toast('Preencha a URL antes de testar.', 'error'); return; }
+    if (!auth && !key && !_editingProvider) { toast('Preencha a chave antes de testar.', 'error'); return; }
+    if (auth && !_editingProvider) { toast('Salve o provedor OAuth antes de testar.', 'error'); return; }
     if (btn) { btn.textContent = 'Testando…'; btn.disabled = true; }
     if (importBtn) importBtn.hidden = true;
-    const res = await api('test_provider', url, key, _editingProvider || null);
+    const res = await api('test_provider', url || '', key || '', _editingProvider || null);
     if (btn) { btn.textContent = 'Testar conexão'; btn.disabled = false; }
     if (resultEl) {
       resultEl.hidden = false;
       if (res && res.ok) {
         resultEl.className = 'ab-test-ok';
-        resultEl.textContent = `✓ Conexão OK — ${res.models_count ?? (res.models || []).length} modelo(s)`;
+        resultEl.textContent = res.oauth
+          ? `✓ ${res.message || 'Sessão OAuth válida'} (${res.protocol})`
+          : `✓ Conexão OK — ${res.models_count ?? (res.models || []).length} modelo(s)`;
         if (importBtn && (res.models || []).length) {
           importBtn.hidden = false;
           importBtn.onclick = () => {
@@ -511,23 +606,26 @@ function wireControls() {
     const url = document.getElementById('f-url')?.value?.trim();
     const key = document.getElementById('f-key')?.value?.trim();
     const models = document.getElementById('f-models')?.value?.trim();
+    const auth = currentAuth();
 
-    if (!name || !url) return;
-    if (!key && !_editingProvider) { toast('Preencha a chave API.', 'error'); return; }
+    if (!name) return;
+    if (!auth && !url) { toast('Preencha a URL do provedor.', 'error'); return; }
+    if (!auth && !key && !_editingProvider) { toast('Preencha a chave API.', 'error'); return; }
 
     const saveBtn = document.getElementById('btn-save');
     if (saveBtn) saveBtn.disabled = true;
 
-    const res = await api('add_provider', name, url, key, models);
+    const res = await api('add_provider', name, url || '', key || '', models, auth, null);
 
     if (saveBtn) saveBtn.disabled = false;
 
     if (res && res.ok) {
       const restartTargets = res.restart_required_targets || [];
+      const suffix = auth ? ' OAuth configurado — use “Entrar com…” se ainda não houver sessão.' : '';
       if (restartTargets.length) {
-        toast(`Provedor "${name}" salvo. Reinicie ${restartTargets.join(' e ')} para atualizar o seletor de modelos.`, 'success');
+        toast(`Provedor "${name}" salvo.${suffix} Reinicie ${restartTargets.join(' e ')} para atualizar o seletor de modelos.`, 'success');
       } else {
-        toast(`Provedor "${name}" salvo.`, 'success');
+        toast(`Provedor "${name}" salvo.${suffix}`, 'success');
       }
       await refresh();
       go('providers');

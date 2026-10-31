@@ -135,7 +135,23 @@ def get_providers() -> list:
         save(data)
         providers = data.get('providers', [])
 
-    return [{**p, 'api_key': _get_key(p['name'])} for p in providers]
+    # OAuth providers carry no API key: the credential comes from oauth.resolve().
+    def _public(provider: dict) -> dict:
+        auth = provider.get('auth') or {}
+        if str(auth.get('kind', '')).lower() == 'oauth':
+            return {**provider, 'api_key': ''}
+        return {**provider, 'api_key': _get_key(provider['name'])}
+
+    return [_public(p) for p in providers]
+
+
+def get_provider(name: str) -> Optional[dict]:
+    """Return one provider (with its api_key when it is API-key based)."""
+    for provider in get_providers():
+        if provider['name'] == name:
+            return provider
+    return None
+
 
 
 def get_api_key(name: str) -> str:
@@ -147,16 +163,34 @@ def get_port() -> int:
     return load().get('port', DEFAULT_PORT)
 
 
-def add_provider(name: str, base_url: str, api_key: str, models: list):
-    _set_key(name, api_key)
+def add_provider(name: str, base_url: str, api_key: str, models: list,
+                 auth: Optional[dict] = None, protocol: Optional[str] = None):
+    """Create/update a provider.
+
+    ``auth`` (e.g. ``{'kind': 'oauth', 'source': 'codex'}``) turns the provider
+    into an OAuth one; in that case no API key is stored. ``protocol`` forces
+    the upstream wire format (``chat``, ``responses`` or ``anthropic``).
+    """
+    if auth and str(auth.get('kind', '')).lower() == 'oauth':
+        _delete_key(name)
+        api_key = ''
+    else:
+        auth = None
+    if api_key:
+        _set_key(name, api_key)
     data = load()
     providers = [p for p in data.get('providers', []) if p['name'] != name]
-    providers.append({
+    entry = {
         'name': name,
-        'base_url': base_url.rstrip('/'),
+        'base_url': (base_url or '').rstrip('/'),
         'models': models,
         # api_key stored in system keyring, not here
-    })
+    }
+    if auth:
+        entry['auth'] = dict(auth)
+    if protocol:
+        entry['protocol'] = protocol
+    providers.append(entry)
     data['providers'] = providers
     save(data)
 

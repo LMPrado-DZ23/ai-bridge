@@ -269,6 +269,34 @@
         </div>
 
         <div>
+          <label for="f-auth-kind" class="ab-label">Autenticação</label>
+          <select id="f-auth-kind" class="ab-input" name="auth-kind">
+            <option value="api_key">API key</option>
+            <option value="oauth">OAuth (reaproveitar login da CLI)</option>
+          </select>
+        </div>
+
+        <div id="f-oauth-row" class="hidden">
+          <label for="f-oauth-source" class="ab-label">Fonte OAuth</label>
+          <select id="f-oauth-source" class="ab-input" name="oauth-source">
+            <option value="codex">Codex / ChatGPT — codex login</option>
+            <option value="claude">Claude Code — claude</option>
+            <option value="gemini">Gemini CLI</option>
+            <option value="gcloud">gcloud ADC — Vertex / Gemini API</option>
+            <option value="huggingface">Hugging Face — hf auth login</option>
+            <option value="cloudflare">Cloudflare Wrangler — wrangler login</option>
+            <option value="copilot">GitHub Copilot — gh auth login</option>
+          </select>
+          <div class="flex items-center gap-2 mt-2">
+            <button id="btn-oauth-login" type="button" class="btn btn-ghost btn-sm">Entrar com…</button>
+            <span id="oauth-status" class="text-[11px] ab-label-hint"></span>
+          </div>
+          <p class="ab-label-hint mt-1">
+            Primeiro o AI Bridge reutiliza a sessão que a CLI já gravou; se não existir, abre o login no navegador.
+          </p>
+        </div>
+
+        <div id="f-key-row">
           <label class="ab-label">
             API Key
             <span id="save-label" class="ab-label-hint hidden">(chave salva — deixe em branco para manter)</span>

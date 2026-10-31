@@ -53,3 +53,67 @@ def test_claude_gateway_catalog_includes_models_from_multiple_providers(monkeypa
         {"name": "claude-sonnet-5-3", "labelOverride": "Claude Sonnet · OpenRouter (AI Bridge)"},
     ]
     assert config.get_model_id("claude-sonnet-5-3") == "anthropic/claude-sonnet"
+
+def test_codex_catalog_mixes_oauth_and_api_key_models(tmp_path, monkeypatch):
+    """O catálogo do Codex é único: mistura modelos OAuth e de API key."""
+    codex_dir = tmp_path / ".codex"
+    codex_dir.mkdir()
+    catalog_path = codex_dir / "ai-bridge-models.json"
+    monkeypatch.setattr(codex, "CODEX_DIR", codex_dir)
+    monkeypatch.setattr(codex, "CODEX_CATALOG_FILE", catalog_path)
+    monkeypatch.setattr(config, "all_picker_models", lambda: [
+        {"value": "Codex (OAuth)/gpt-6-luna", "label": "GPT-6 Luna · Codex (OAuth)"},
+        {"value": "DeepSeek/deepseek-v4-pro", "label": "DeepSeek V4 Pro · DeepSeek"},
+        {"value": "Claude Code (OAuth)/claude-sonnet-5", "label": "Claude Sonnet 5 · Claude Code (OAuth)"},
+    ])
+
+    codex._write_catalog_file()
+    catalog = json.loads(catalog_path.read_text(encoding="utf-8"))
+
+    assert [model["slug"] for model in catalog["models"]] == [
+        "Codex (OAuth)/gpt-6-luna",
+        "DeepSeek/deepseek-v4-pro",
+        "Claude Code (OAuth)/claude-sonnet-5",
+    ]
+    assert all(model["provider"] == "ai_bridge" for model in catalog["models"])
+
+def test_codex_connect_writes_unified_catalog_and_reverts(tmp_path, monkeypatch):
+    """Conectar o Codex grava UMA lista (OAuth + API key) e desconectar restaura tudo."""
+    codex_dir = tmp_path / ".codex"
+    codex_dir.mkdir()
+    config_path = codex_dir / "config.toml"
+    catalog_path = codex_dir / "ai-bridge-models.json"
+    state_path = codex_dir / ".ai-bridge-state.json"
+    config_path.write_text('model = "gpt-5.5"\nmodel_provider = "openai"\n', encoding="utf-8")
+
+    monkeypatch.setattr(codex, "CODEX_DIR", codex_dir)
+    monkeypatch.setattr(codex, "CODEX_CONFIG", config_path)
+    monkeypatch.setattr(codex, "CODEX_CATALOG_FILE", catalog_path)
+    monkeypatch.setattr(codex, "_STATE_FILE", state_path)
+    monkeypatch.setattr(config, "all_picker_models", lambda: [
+        {"value": "Codex (OAuth)/gpt-6-luna", "label": "GPT-6 Luna · Codex (OAuth)"},
+        {"value": "DeepSeek/deepseek-v4-pro", "label": "DeepSeek V4 Pro · DeepSeek"},
+    ])
+    monkeypatch.setattr(config, "get_active_model", lambda: "Codex (OAuth)/gpt-6-luna")
+
+    codex.connect(38771)
+
+    text = config_path.read_text(encoding="utf-8")
+    assert 'model_provider = "ai_bridge"' in text
+    assert 'model_catalog_json = ' in text
+    assert 'ai-bridge-models.json' in text
+    assert '[model_providers.ai_bridge]' in text
+    assert 'wire_api = "responses"' in text
+    catalog = json.loads(catalog_path.read_text(encoding="utf-8"))
+    assert [m["slug"] for m in catalog["models"]] == [
+        "Codex (OAuth)/gpt-6-luna", "DeepSeek/deepseek-v4-pro",
+    ]
+
+    codex.disconnect()
+
+    restored = config_path.read_text(encoding="utf-8")
+    assert 'model = "gpt-5.5"' in restored
+    assert 'model_provider = "openai"' in restored
+    assert 'model_provider = "ai_bridge"' not in restored
+    assert 'model_catalog_json' not in restored
+    assert not state_path.exists()

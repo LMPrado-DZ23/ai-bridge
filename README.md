@@ -95,6 +95,28 @@ Qualquer provedor com API OpenAI-compatible pode ser adicionado manualmente.
 
 ---
 
+## Autenticação OAuth (sessões das CLIs)
+
+Além de API key, um provedor pode autenticar com **OAuth** reaproveitando a sessão que
+o CLI já gravou — e, quando não existe sessão, o próprio AI Bridge faz o login PKCE no
+navegador (callback em `127.0.0.1/oauth/callback`).
+
+| `source` | CLI | Protocolo |
+|---|---|---|
+| `codex` | `codex login` (ChatGPT) | Responses |
+| `claude` | Claude Code | Anthropic (passthrough) |
+| `gemini` | gemini-cli | Chat |
+| `gcloud` | `gcloud auth application-default login` | Chat (você informa o endpoint) |
+| `huggingface` | `huggingface-cli login` | Chat |
+| `cloudflare` | `wrangler login` | Chat |
+| `copilot` | `gh auth login` | Chat |
+
+Tokens expirados são renovados no mesmo endpoint da CLI e gravados de volta, então CLI
+e bridge seguem com uma sessão só. Detalhes, limitações (Cursor/Windsurf, Amazon Q,
+Cloudflare) e como criar um adaptador novo: [docs/OAUTH.md](docs/OAUTH.md).
+
+---
+
 ## Destinos suportados
 
 | Destino | Protocolo | Como conecta |
