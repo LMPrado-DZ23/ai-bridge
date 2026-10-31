@@ -389,7 +389,44 @@ function applyCatalogEntry(entry) {
   if (protocol) protocol.value = entry.protocol || '';
   const envKey = document.getElementById('f-env-key');
   if (envKey) envKey.value = entry.env_key || '';
+  _discoveredModels = [];
+  renderModelPicker();
+  const status = document.getElementById('models-status');
+  if (status) status.textContent = '';
   if (name) name.focus();
+}
+
+let _discoveredModels = [];
+
+function renderModelPicker() {
+  const box = document.getElementById('model-picker');
+  if (!box) return;
+  const onlyFree = document.getElementById('only-free')?.checked;
+  const models = _discoveredModels.filter(m => !onlyFree || m.free);
+  if (!_discoveredModels.length) {
+    box.classList.add('hidden');
+    box.innerHTML = '';
+    return;
+  }
+  box.classList.remove('hidden');
+  box.innerHTML = models.length
+    ? models.map(m => `<label class="ab-catalog__item">
+        <input type="checkbox" data-model="${escHtml(m.id)}" checked />
+        <span class="ab-catalog__label">${escHtml(m.id)}</span>
+        ${m.free ? '<span class="ab-catalog__badge ab-catalog__badge--custom">grátis</span>' : ''}
+      </label>`).join('')
+    : '<div class="ab-label-hint px-1 py-2">Nenhum modelo para este filtro.</div>';
+}
+
+function selectedModelLines() {
+  const boxes = [...document.querySelectorAll('#model-picker input[data-model]:checked')];
+  if (!boxes.length) return '';
+  const byId = new Map(_discoveredModels.map(m => [m.id, m]));
+  return boxes.map(box => {
+    const model = byId.get(box.dataset.model);
+    const label = model && model.label && model.label !== model.id ? `|${model.label}` : '';
+    return `${box.dataset.model}${label}`;
+  }).join('\n');
 }
 
 // ── State refresh ─────────────────────────────────────────────────────────────
@@ -596,6 +633,37 @@ function wireControls() {
     document.getElementById('icon-eye-off')?.classList.toggle('hidden', !isHidden);
   });
 
+  // Buscar modelos direto na API do provedor
+  document.getElementById('btn-fetch-models')?.addEventListener('click', async () => {
+    const btn = document.getElementById('btn-fetch-models');
+    const status = document.getElementById('models-status');
+    const name = document.getElementById('f-name')?.value?.trim() || '';
+    const url = document.getElementById('f-url')?.value?.trim() || '';
+    const key = document.getElementById('f-key')?.value?.trim() || '';
+    const envKey = document.getElementById('f-env-key')?.value?.trim() || '';
+    const auth = currentAuth();
+    if (!url && !_editingProvider) { toast('Informe a URL base para buscar os modelos.', 'error'); return; }
+    if (btn) { btn.disabled = true; btn.textContent = 'Buscando…'; }
+    const res = await api('fetch_models', _editingProvider || name, url, key, envKey, auth);
+    if (btn) { btn.disabled = false; btn.textContent = 'Buscar modelos disponíveis'; }
+    if (!res || !res.ok) {
+      if (status) status.textContent = res?.error || '';
+      toast(res?.error || 'Falha ao buscar modelos.', 'error');
+      return;
+    }
+    _discoveredModels = res.models || [];
+    if (status) status.textContent = `${res.total} modelos · ${res.free_count} gratuitos`;
+    renderModelPicker();
+  });
+
+  document.getElementById('only-free')?.addEventListener('change', renderModelPicker);
+  document.getElementById('btn-select-all')?.addEventListener('click', () => {
+    document.querySelectorAll('#model-picker input[data-model]').forEach(box => { box.checked = true; });
+  });
+  document.getElementById('btn-clear-models')?.addEventListener('click', () => {
+    document.querySelectorAll('#model-picker input[data-model]').forEach(box => { box.checked = false; });
+  });
+
   // Importar provedores/modelos do perfil do DeepSeek Harness
   document.getElementById('btn-import-dsh')?.addEventListener('click', async () => {
     const btn = document.getElementById('btn-import-dsh');
@@ -663,7 +731,8 @@ function wireControls() {
     const name = document.getElementById('f-name')?.value?.trim();
     const url = document.getElementById('f-url')?.value?.trim();
     const key = document.getElementById('f-key')?.value?.trim();
-    const models = document.getElementById('f-models')?.value?.trim();
+    const typedModels = document.getElementById('f-models')?.value?.trim() || '';
+    const models = selectedModelLines() || typedModels;
     const auth = currentAuth();
 
     if (!name) return;

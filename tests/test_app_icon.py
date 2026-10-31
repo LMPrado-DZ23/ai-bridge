@@ -73,3 +73,13 @@ def test_form_has_env_key_field_and_submits_it():
     html = (ROOT / "ai_bridge" / "ui" / "index.html").read_text(encoding="utf-8")
     assert 'id="f-env-key"' in html
     assert "envKey || null" in js
+
+def test_add_screen_has_model_discovery_and_free_filter():
+    js = (ROOT / "ai_bridge" / "ui" / "app.js").read_text(encoding="utf-8")
+    html = (ROOT / "ai_bridge" / "ui" / "index.html").read_text(encoding="utf-8")
+    assert 'id="btn-fetch-models"' in html
+    assert 'id="model-picker"' in html
+    assert 'id="only-free"' in html
+    assert "api('fetch_models'" in js
+    assert "selectedModelLines()" in js
+    assert 'grátis' in js

@@ -361,6 +361,21 @@
             spellcheck="false"></textarea>
         </div>
 
+        <div class="flex items-center gap-2 flex-wrap">
+          <button id="btn-fetch-models" type="button" class="btn btn-ghost btn-sm">
+            Buscar modelos disponíveis
+          </button>
+          <label class="ab-label-hint flex items-center gap-1">
+            <input id="only-free" type="checkbox" /> só gratuitos
+          </label>
+          <span id="models-status" class="ab-label-hint"></span>
+        </div>
+        <div id="model-picker" class="ab-catalog hidden"></div>
+        <div class="flex gap-3">
+          <button id="btn-select-all" type="button" class="text-[10px] text-white/50 hover:text-white">selecionar todos</button>
+          <button id="btn-clear-models" type="button" class="text-[10px] text-white/50 hover:text-white">limpar seleção</button>
+        </div>
+
         <!-- Test connection -->
         <div class="flex items-center gap-3">
           <button id="btn-test" type="button"

@@ -63,6 +63,10 @@ def test_env_available(monkeypatch):
 @pytest.fixture
 def bridge(monkeypatch):
     monkeypatch.setattr(bridge_mod.Bridge, '_sync_connected_targets', lambda self: None)
+    # import não deve bater na rede nos testes
+    monkeypatch.setattr(bridge_mod.Bridge, 'fetch_models',
+                        lambda self, name='', base_url='', api_key='', env_key='', auth=None:
+                        {'ok': False, 'error': 'sem rede no teste'})
     return bridge_mod.Bridge()
 
 
@@ -127,3 +131,18 @@ def test_bare_host_base_url_gets_v1(tmp_path, monkeypatch):
     providers = dsh_import.read_providers()
 
     assert providers[0]['base_url'] == 'https://claude-ss.ia.br/v1'
+
+
+def test_import_replaces_models_with_auto_discovery(bridge, dsh_home, monkeypatch):
+    monkeypatch.setattr(config, 'get_providers', lambda: [])
+    captured = []
+    monkeypatch.setattr(config, 'add_provider', lambda *a, **k: captured.append((a, k)))
+    monkeypatch.setattr(bridge_mod.Bridge, 'fetch_models',
+                        lambda self, name='', base_url='', api_key='', env_key='', auth=None:
+                        {'ok': True, 'models': [{'id': 'qwen3:8b', 'label': 'Qwen3 8B', 'free': True}],
+                         'total': 1, 'free_count': 1})
+
+    res = bridge.import_dsh_providers()
+
+    assert res['ok'] is True
+    assert res['auto_models']['ollama'] == 1

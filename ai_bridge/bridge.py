@@ -801,6 +801,53 @@ class Bridge:
         """Menu de provedores para a UI: assinaturas OAuth, API keys e custom."""
         return {'ok': True, 'catalog': CATALOG}
 
+    # ── Descoberta automática de modelos ─────────────────────────────────────
+
+    def fetch_models(self, name: str = '', base_url: str = '', api_key: str = '',
+                     env_key: str = '', auth: dict = None) -> dict:
+        """Busca os modelos no endpoint do provedor (salvo ou em rascunho)."""
+        from . import discovery
+
+        provider = cfg.get_provider(name) if name else None
+        if provider is None:
+            provider = {
+                'name': name or 'adhoc',
+                'base_url': (base_url or '').strip(),
+                'api_key': (api_key or '').strip(),
+                'env_key': (env_key or '').strip(),
+                'auth': auth or None,
+                'models': [],
+            }
+        if oauth.is_oauth(provider) and str((provider.get('auth') or {}).get('source')) == 'codex':
+            return {'ok': False, 'error': (
+                'O backend do ChatGPT não expõe /models. Use a lista do preset '
+                'Codex (gpt-6-luna, gpt-5.6-luna, gpt-reserve) ou edite os modelos à mão.'
+            )}
+        try:
+            resolved = oauth.resolve(provider)
+        except oauth.MissingCredentials as exc:
+            return {'ok': False, 'error': str(exc)}
+        except Exception as exc:  # noqa: BLE001 - surfaced in the UI
+            return {'ok': False, 'error': str(exc)}
+
+        headers = dict(resolved.headers)
+        key = (api_key or provider.get('api_key') or '').strip()
+        if not key and provider.get('env_key'):
+            import os
+            key = os.environ.get(str(provider['env_key']), '')
+        # A API Anthropic por chave usa x-api-key, não Authorization.
+        if 'anthropic.com' in resolved.base_url and key:
+            headers.pop('Authorization', None)
+            headers['x-api-key'] = key
+            headers['anthropic-version'] = headers.get('anthropic-version', '2023-06-01')
+
+        result = discovery.fetch_models(resolved.base_url, headers, provider['name'])
+        if result.get('ok'):
+            result['base_url'] = resolved.base_url
+            result['protocol'] = resolved.protocol
+        return result
+
+
     # ── Importação do DeepSeek Harness ───────────────────────────────────────
 
     def get_dsh_providers(self) -> dict:
@@ -826,7 +873,7 @@ class Bridge:
         if not data.get('ok'):
             return data
         wanted = set(names or [])
-        imported, skipped = [], []
+        imported, skipped, auto = [], [], {}
         for item in data['providers']:
             if wanted and item['name'] not in wanted:
                 continue
@@ -838,6 +885,15 @@ class Bridge:
                 continue
             cfg.add_provider(item['name'], item['base_url'], '', item['models'],
                              env_key=item['env_key'] or None)
+            # Depois de criado, tenta buscar a lista real no endpoint do provedor.
+            try:
+                fetched = self.fetch_models(item['name'])
+            except Exception:  # noqa: BLE001 - import não pode falhar por rede
+                fetched = {'ok': False}
+            if fetched.get('ok') and fetched.get('models'):
+                cfg.add_provider(item['name'], item['base_url'], '', fetched['models'],
+                                 env_key=item['env_key'] or None)
+                auto[item['name']] = fetched['total']
             imported.append(item['name'])
         self._sync_connected_targets()
-        return {'ok': True, 'imported': imported, 'skipped': skipped}
+        return {'ok': True, 'imported': imported, 'skipped': skipped, 'auto_models': auto}
