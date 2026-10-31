@@ -248,6 +248,7 @@
                   <select id="f-auth-kind" class="ab-input" name="auth-kind">
                     <option value="api_key">API key</option>
                     <option value="oauth">OAuth (login da CLI)</option>
+                    <option value="cookie">Cookie de sessão (opt-in)</option>
                   </select>
                 </div>
                 <div class="ab-field" id="f-key-row">
@@ -283,6 +284,22 @@
                   <span id="oauth-status" class="ab-hint"></span>
                 </div>
                 <p class="ab-hint">Reutiliza a sessão que a CLI já gravou; se não existir, abre o login no navegador.</p>
+              </div>
+
+              <div id="f-cookie-row" class="hidden">
+                <div class="ab-field">
+                  <label for="f-cookie" class="ab-label">Cookie de sessão</label>
+                  <textarea id="f-cookie" name="cookie" rows="3" class="ab-textarea"
+                    placeholder="cole aqui o cookie exportado" spellcheck="false"></textarea>
+                  <p class="ab-hint">Fica no keyring, nunca no config. Só funciona em endpoints que aceitam cookie;
+                    chatgpt.com e claude.ai não são OpenAI-compatíveis e ficam atrás de Cloudflare.</p>
+                  <div class="ab-inline">
+                    <button id="btn-cookie-editor" type="button" class="ab-btn ab-btn--ghost ab-btn--sm">
+                      Instalar Cookie Editor
+                    </button>
+                    <span class="ab-hint">Exporte os cookies do site e cole no campo acima.</span>
+                  </div>
+                </div>
               </div>
 
               <div class="ab-field">

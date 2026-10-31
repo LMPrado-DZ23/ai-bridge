@@ -222,6 +222,7 @@ button { font-family: inherit; }
 }
 .ab-badge--oauth { color: #b9c2ff; background: rgba(124, 140, 255, 0.12); border-color: rgba(124, 140, 255, 0.25); }
 .ab-badge--api { color: #7dd3fc; background: rgba(34, 211, 238, 0.10); border-color: rgba(34, 211, 238, 0.22); }
+.ab-badge--cookie { color: #fcd34d; background: rgba(251, 191, 36, 0.10); border-color: rgba(251, 191, 36, 0.24); }
 .ab-badge--off { color: var(--warn); background: rgba(251, 191, 36, 0.10); border-color: rgba(251, 191, 36, 0.22); }
 
 .ab-empty {

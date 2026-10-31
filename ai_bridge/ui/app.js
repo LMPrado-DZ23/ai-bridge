@@ -257,9 +257,12 @@ function renderProviders() {
     const modelCount = (p.models || []).length;
     const auth = p.auth || { kind: 'api_key' };
     const isOauth = auth.kind === 'oauth';
+    const isCookie = auth.kind === 'cookie';
     const badge = isOauth
       ? `<span class="ab-badge ab-badge--oauth">OAuth · ${escHtml(auth.source || '')}${auth.connected ? ' ✓' : ''}</span>`
-      : '<span class="ab-badge ab-badge--api">API key</span>';
+      : isCookie
+        ? '<span class="ab-badge ab-badge--cookie">Cookie</span>'
+        : '<span class="ab-badge ab-badge--api">API key</span>';
     const session = (isOauth && !auth.connected)
       ? '<span class="ab-badge ab-badge--off">sem sessão</span>' : '';
     const meta = [p.base_url || '', modelCount ? `${modelCount} modelo${modelCount === 1 ? '' : 's'}` : '']
@@ -509,20 +512,29 @@ async function renderAdd(editName) {
 
 function currentAuth() {
   const kind = document.getElementById('f-auth-kind')?.value || 'api_key';
-  if (kind !== 'oauth') return null;
-  return { kind: 'oauth', source: document.getElementById('f-oauth-source')?.value || 'codex' };
+  if (kind === 'oauth') return { kind: 'oauth', source: document.getElementById('f-oauth-source')?.value || 'codex' };
+  if (kind === 'cookie') return { kind: 'cookie' };
+  return null;
 }
 
 function syncAuthUi(auth) {
-  const kind = (auth && auth.kind === 'oauth') ? 'oauth' : 'api_key';
+  const kind = (auth && (auth.kind === 'oauth' || auth.kind === 'cookie')) ? auth.kind : 'api_key';
   const kindSel = document.getElementById('f-auth-kind');
   if (kindSel) kindSel.value = kind;
   if (auth && auth.source) {
     const srcSel = document.getElementById('f-oauth-source');
     if (srcSel) srcSel.value = auth.source;
   }
-  document.getElementById('f-key-row')?.classList.toggle('hidden', kind === 'oauth');
+  document.getElementById('f-key-row')?.classList.toggle('hidden', kind !== 'api_key');
   document.getElementById('f-oauth-row')?.classList.toggle('hidden', kind !== 'oauth');
+  document.getElementById('f-cookie-row')?.classList.toggle('hidden', kind !== 'cookie');
+  const cookieEl = document.getElementById('f-cookie');
+  if (cookieEl && kind === 'cookie') {
+    cookieEl.value = '';
+    cookieEl.placeholder = (auth && auth.has_cookie)
+      ? 'Cookie salvo — deixe em branco para manter'
+      : 'cole aqui o cookie exportado';
+  }
   const statusEl = document.getElementById('oauth-status');
   if (statusEl) {
     const st = auth && auth.status;
@@ -697,6 +709,13 @@ function wireControls() {
   // Providers back + add
   document.getElementById('btn-back-providers')?.addEventListener('click', () => go('home'));
   document.getElementById('btn-add-from-providers')?.addEventListener('click', () => go('add'));
+
+  // Atalho para a extensão Cookie Editor (Chrome Web Store)
+  document.getElementById('btn-cookie-editor')?.addEventListener('click', async () => {
+    const url = 'https://chromewebstore.google.com/detail/cookie-editor/ookdjilphngeeeghgngjabigmpepanpl';
+    const res = await api('open_external', url);
+    if (!res || !res.ok) toast(res?.error || 'Não foi possível abrir o navegador.', 'error');
+  });
 
   // Wizard: trocar provedor (volta ao passo 1) e prévia dos modelos
   document.getElementById('btn-change-provider')?.addEventListener('click', () => showAddStep(1));
@@ -902,23 +921,30 @@ function wireControls() {
     const typedModels = document.getElementById('f-models')?.value?.trim() || '';
     const models = selectedModelLines() || typedModels;
     const auth = currentAuth();
+    const cookie = document.getElementById('f-cookie')?.value?.trim() || '';
 
     if (!name) return;
     if (!auth && !url) { toast('Preencha a URL do provedor.', 'error'); return; }
     if (!auth && !key && !_editingProvider) { toast('Preencha a chave API.', 'error'); return; }
+    if (auth && auth.kind === 'cookie') {
+      if (!url) { toast('Informe a URL base que aceita o cookie.', 'error'); return; }
+      if (!cookie && !_editingProvider) { toast('Cole o cookie de sessão.', 'error'); return; }
+    }
 
     const saveBtn = document.getElementById('btn-save');
     if (saveBtn) saveBtn.disabled = true;
 
     const protocol = document.getElementById('f-protocol')?.value || '';
     const envKey = document.getElementById('f-env-key')?.value?.trim();
-    const res = await api('add_provider', name, url || '', key || '', models, auth, protocol || null, envKey || null);
+    const res = await api('add_provider', name, url || '', key || '', models, auth, protocol || null, envKey || null, cookie || null);
 
     if (saveBtn) saveBtn.disabled = false;
 
     if (res && res.ok) {
       const restartTargets = res.restart_required_targets || [];
-      const suffix = auth ? ' OAuth configurado — use “Entrar com…” se ainda não houver sessão.' : '';
+      const suffix = auth && auth.kind === 'oauth'
+        ? ' OAuth configurado — use “Entrar com…” se ainda não houver sessão.'
+        : (auth && auth.kind === 'cookie' ? ' Cookie salvo no keyring (fora do config).' : '');
       if (restartTargets.length) {
         toast(`Provedor "${name}" salvo.${suffix} Reinicie ${restartTargets.join(' e ')} para atualizar o seletor de modelos.`, 'success');
       } else {

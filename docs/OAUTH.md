@@ -150,3 +150,16 @@ Foi avaliado integrar um coletor de cookies (por exemplo a extensão GPL-3.0
 Se algum dia isso for revisitado, deve ser um módulo **opt-in, separado e explicitamente
 não suportado**, sem persistir cookies e sem entrar no núcleo do proxy — nunca embutido no
 aplicativo distribuído.
+
+## Cookie de sessão (opt-in)
+
+Além de API key e OAuth, um provedor pode usar `auth.kind = "cookie"`: você exporta os
+cookies de um site com a extensão [Cookie Editor](https://chromewebstore.google.com/detail/cookie-editor/ookdjilphngeeeghgngjabigmpepanpl)
+e cola no AI Bridge. O valor vai **para o keyring**, nunca para `config.json`, e é enviado no
+cabeçalho `Cookie:` apenas para a URL base configurada. A UI tem o botão **Instalar Cookie Editor**
+dentro do passo de autenticação.
+
+**Use apenas em endpoints que realmente aceitam cookie** (gateways internos, proxies da sua
+empresa). Não funciona como atalho para a cota web de ChatGPT/Claude/Gemini: esses backends não
+são OpenAI-compatíveis, exigem prova de navegador e ficam atrás de Cloudflare. Para a cota web
+de ChatGPT existe o `codex-chatgpt-web` (automação de navegador, com as regras e limites da conta).

@@ -420,6 +420,7 @@ class Bridge:
                         'base_url': p['base_url'],
                         'models_raw': models_raw,
                         'has_key': bool(stored_key),
+                        'has_cookie': bool(cfg.get_cookie(name)),
                         'env_key': p.get('env_key', ''),
                         'auth': p.get('auth') or {'kind': 'api_key'},
                         'auth_status': oauth.status(p),
@@ -431,17 +432,29 @@ class Bridge:
             return {'ok': False, 'error': str(e)}
 
     def add_provider(self, name: str, base_url: str, api_key: str, models_raw: str,
-                     auth: dict = None, protocol: str = '', env_key: str = '') -> dict:
+                     auth: dict = None, protocol: str = '', env_key: str = '',
+                     cookie: str = '') -> dict:
         with self._lock:
             try:
                 name = name.strip()
                 base_url = (base_url or '').strip().rstrip('/')
                 api_key = (api_key or '').strip()
-                is_oauth = bool(auth) and str(auth.get('kind', '')).lower() == 'oauth'
+                auth_kind = str((auth or {}).get('kind', '')).lower()
+                is_oauth = auth_kind == 'oauth'
+                is_cookie = auth_kind == 'cookie'
 
                 if not name:
                     return {'ok': False, 'error': 'Nome do provedor é obrigatório'}
-                if is_oauth:
+                if is_cookie:
+                    if not base_url:
+                        return {'ok': False, 'error': 'Informe a URL base do endpoint que aceita o cookie.'}
+                    if not _is_valid_url(base_url):
+                        return {'ok': False, 'error': 'URL inválida. Use o formato https://api.example.com/v1'}
+                    cookie = (cookie or '').strip()
+                    existing = next((p for p in cfg.get_providers() if p['name'] == name), None)
+                    if not cookie and not (existing and cfg.get_cookie(name)):
+                        return {'ok': False, 'error': 'Cole o cookie de sessão (ou mantenha o existente).'}
+                elif is_oauth:
                     # OAuth: a URL é opcional (a fonte define o padrão) e não há chave.
                     if base_url and not _is_valid_url(base_url):
                         return {'ok': False, 'error': 'URL inválida. Use o formato https://api.example.com/v1'}
@@ -484,9 +497,10 @@ class Bridge:
                     return {'ok': False, 'error': 'Adicione pelo menos um modelo'}
 
                 cfg.add_provider(name, base_url, api_key, models,
-                                 auth=auth if is_oauth else None,
+                                 auth=auth if (is_oauth or is_cookie) else None,
                                  protocol=protocol or None,
-                                 env_key=(env_key or '').strip() or None)
+                                 env_key=(env_key or '').strip() or None,
+                                 cookie=cookie if is_cookie else None)
                 self._sync_connected_targets()
                 restart_required_targets = []
                 if claude_code.is_connected():
@@ -551,6 +565,11 @@ class Bridge:
         """
         if provider_name:
             provider = cfg.get_provider(provider_name)
+            if provider and str((provider.get('auth') or {}).get('kind', '')).lower() == 'cookie':
+                if not cfg.get_cookie(provider_name):
+                    return {'ok': False, 'error': 'Cookie de sessão ausente para este provedor.', 'auth_required': True}
+                return {'ok': True, 'cookie': True,
+                        'message': 'Cookie salvo. Envie um teste pelo endpoint configurado.'}
             if provider and oauth.is_oauth(provider):
                 try:
                     resolved = oauth.resolve(provider, force_refresh=True)
@@ -649,6 +668,22 @@ class Bridge:
             'account_id': auth.account_id,
             'message': 'Sessão renovada.',
         }
+
+    def open_external(self, url: str) -> dict:
+        """Abre no navegador do sistema apenas URLs aprovadas (sem navegar no webview)."""
+        allowed = (
+            'https://chromewebstore.google.com/',
+            'https://github.com/LMPrado-DZ23/ai-bridge',
+        )
+        target = str(url or '').strip()
+        if not target.startswith(allowed):
+            return {'ok': False, 'error': 'URL não permitida'}
+        try:
+            import webbrowser
+            webbrowser.open(target)
+            return {'ok': True}
+        except Exception as exc:
+            return {'ok': False, 'error': str(exc)}
 
     def get_oauth_login_url(self, name: str) -> dict:
         """Start the bridge's own PKCE login and open the browser."""

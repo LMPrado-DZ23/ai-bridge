@@ -138,9 +138,12 @@ def get_providers() -> list:
     # OAuth providers carry no API key: the credential comes from oauth.resolve().
     def _public(provider: dict) -> dict:
         auth = provider.get('auth') or {}
-        if str(auth.get('kind', '')).lower() == 'oauth':
-            return {**provider, 'api_key': ''}
-        return {**provider, 'api_key': _get_key(provider['name'])}
+        kind = str(auth.get('kind', '')).lower()
+        if kind == 'oauth':
+            return {**provider, 'api_key': '', 'cookie': ''}
+        if kind == 'cookie':
+            return {**provider, 'api_key': '', 'cookie': _get_key(_cookie_key(provider['name']))}
+        return {**provider, 'api_key': _get_key(provider['name']), 'cookie': ''}
 
     return [_public(p) for p in providers]
 
@@ -159,13 +162,22 @@ def get_api_key(name: str) -> str:
     return _get_key(name)
 
 
+def _cookie_key(name: str) -> str:
+    return f'cookie::{name}'
+
+
+def get_cookie(name: str) -> str:
+    """Cookie de sessão (opt-in) guardado no keyring, nunca no JSON."""
+    return _get_key(_cookie_key(name))
+
+
 def get_port() -> int:
     return load().get('port', DEFAULT_PORT)
 
 
 def add_provider(name: str, base_url: str, api_key: str, models: list,
                  auth: Optional[dict] = None, protocol: Optional[str] = None,
-                 env_key: Optional[str] = None):
+                 env_key: Optional[str] = None, cookie: Optional[str] = None):
     """Create/update a provider.
 
     ``auth`` (e.g. ``{'kind': 'oauth', 'source': 'codex'}``) turns the provider
@@ -174,11 +186,22 @@ def add_provider(name: str, base_url: str, api_key: str, models: list,
     ``env_key`` names an environment variable holding the key (DSH style), used
     when no key is kept in the keyring.
     """
-    if auth and str(auth.get('kind', '')).lower() == 'oauth':
+    kind = str((auth or {}).get('kind', '')).lower()
+    if kind == 'oauth':
         _delete_key(name)
         api_key = ''
+        cookie = None
+    elif kind == 'cookie':
+        _delete_key(name)
+        api_key = ''
+        if cookie:
+            _set_key(_cookie_key(name), cookie)
+        else:
+            # em branco na edição = manter o cookie existente
+            cookie = None
     else:
         auth = None
+        cookie = None
     if api_key:
         _set_key(name, api_key)
     data = load()

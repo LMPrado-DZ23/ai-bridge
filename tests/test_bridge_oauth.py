@@ -1,5 +1,6 @@
 """Bridge/UI-facing OAuth surface: provider CRUD, status and login URL."""
 import types
+from pathlib import Path
 
 import pytest
 
@@ -215,3 +216,27 @@ def test_catalog_entries_can_carry_env_key(bridge):
 def test_codex_source_uses_registered_callback():
     assert oauth.SOURCES['codex'].callback_url == 'http://localhost:1455/auth/callback'
     assert oauth.SOURCES['claude'].callback_url.startswith('http://localhost:')
+
+
+def test_open_external_allows_cookie_editor(monkeypatch):
+    import webbrowser
+    opened = []
+    monkeypatch.setattr(webbrowser, 'open', lambda url: opened.append(url))
+    res = bridge_mod.Bridge().open_external(
+        'https://chromewebstore.google.com/detail/cookie-editor/ookdjilphngeeeghgngjabigmpepanpl')
+    assert res['ok'] is True
+    assert opened and opened[0].startswith('https://chromewebstore.google.com/')
+
+
+def test_open_external_rejects_other_hosts():
+    res = bridge_mod.Bridge().open_external('https://evil.example/phish')
+    assert res['ok'] is False
+
+
+def test_cookie_editor_shortcut_in_ui():
+    root = Path(__file__).resolve().parents[1]
+    js = (root / "ai_bridge" / "ui" / "app.js").read_text(encoding="utf-8")
+    html = (root / "ai_bridge" / "ui" / "index.html").read_text(encoding="utf-8")
+    assert 'id="btn-cookie-editor"' in html
+    assert "ookdjilphngeeeghgngjabigmpepanpl" in js
+    assert "open_external" in js

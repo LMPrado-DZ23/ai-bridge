@@ -816,6 +816,24 @@ def _load_or_refresh(provider: dict, *, force: bool = False) -> Token:
 
 def resolve(provider: dict, *, protocol: str = '', force_refresh: bool = False) -> ResolvedAuth:
     """Return headers/base_url/protocol for one provider (OAuth or API key)."""
+    if str((provider.get('auth') or {}).get('kind', '')).lower() == 'cookie':
+        cookie = str(provider.get('cookie') or provider.get('api_key') or '').strip()
+        if not cookie and provider.get('env_key'):
+            cookie = os.environ.get(str(provider['env_key']), '').strip()
+        headers = {
+            'Content-Type': 'application/json',
+            'User-Agent': USER_AGENT,
+        }
+        if cookie:
+            header_name = str((provider.get('auth') or {}).get('header') or 'Cookie')
+            headers[header_name] = cookie
+        return ResolvedAuth(
+            headers=headers,
+            base_url=str(provider.get('base_url', '')).rstrip('/'),
+            protocol=protocol or str(provider.get('protocol', '') or 'chat'),
+            source='cookie',
+        )
+
     if not is_oauth(provider):
         key = str(provider.get('api_key') or '')
         if not key and provider.get('env_key'):
@@ -857,6 +875,10 @@ def resolve(provider: dict, *, protocol: str = '', force_refresh: bool = False) 
 
 def status(provider: dict) -> dict:
     """Non-secret status for the UI (never returns the token)."""
+    if str((provider.get('auth') or {}).get('kind', '')).lower() == 'cookie':
+        has_cookie = bool(provider.get('cookie'))
+        return {'kind': 'cookie', 'has_key': has_cookie, 'has_cookie': has_cookie}
+
     if not is_oauth(provider):
         has_key = bool(provider.get('api_key'))
         if not has_key and provider.get('env_key'):
