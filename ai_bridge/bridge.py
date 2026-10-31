@@ -2,6 +2,7 @@
 pywebview JS bridge — all public methods are callable from the frontend.
 """
 import threading
+from pathlib import Path
 import webbrowser
 from urllib.parse import urlparse
 
@@ -15,6 +16,44 @@ from . import codex as codex_mod
 from . import launchers
 from . import oauth
 from . import oauth_login
+
+AUTOSTART_NAME = 'AI Bridge'
+AUTOSTART_KEY = r'Software\Microsoft\Windows\CurrentVersion\Run'
+
+
+def _autostart_command() -> str:
+    import sys
+    if getattr(sys, 'frozen', False):
+        return f'"{sys.executable}" --tray'
+    entry_py = Path(__file__).resolve().parent.parent / 'entry.py'
+    return f'"{sys.executable}" "{entry_py}" --tray'
+
+
+def _autostart_enabled() -> bool:
+    try:
+        import winreg
+        with winreg.OpenKey(winreg.HKEY_CURRENT_USER, AUTOSTART_KEY) as key:
+            value, _ = winreg.QueryValueEx(key, AUTOSTART_NAME)
+            return bool(value)
+    except (OSError, ImportError):
+        return False
+
+
+def _set_autostart(enabled: bool) -> dict:
+    try:
+        import winreg
+        with winreg.OpenKey(winreg.HKEY_CURRENT_USER, AUTOSTART_KEY, 0, winreg.KEY_SET_VALUE) as key:
+            if enabled:
+                winreg.SetValueEx(key, AUTOSTART_NAME, 0, winreg.REG_SZ, _autostart_command())
+            else:
+                try:
+                    winreg.DeleteValue(key, AUTOSTART_NAME)
+                except FileNotFoundError:
+                    pass
+        return {'ok': True}
+    except Exception as exc:
+        return {'ok': False, 'error': str(exc)}
+
 
 _PRESETS = [
     {
@@ -306,6 +345,34 @@ class Bridge:
         self._tray = tray
 
     # ── Window controls ──────────────────────────────────────────────────────
+
+    def get_settings(self):
+        """Preferências de desktop + estado de autostart e porta do proxy."""
+        return {
+            'ok': True,
+            'settings': cfg.get_settings(),
+            'port': proxy.get_port(),
+            'autostart': _autostart_enabled(),
+        }
+
+    def set_setting(self, key, value):
+        """Atualiza uma preferência e aplica efeitos colaterais (autostart)."""
+        if key not in cfg.SETTINGS_DEFAULTS:
+            return {'ok': False, 'error': 'preferência desconhecida'}
+        if key == 'start_with_windows':
+            applied = _set_autostart(bool(value))
+            if not applied.get('ok'):
+                return applied
+        settings = cfg.update_settings(**{key: bool(value)})
+        return {'ok': True, 'settings': settings, 'autostart': _autostart_enabled()}
+
+    def request_close(self):
+        """X da janela: fecha ou esconde conforme a preferência close_to_tray."""
+        if cfg.get_settings().get('close_to_tray'):
+            self.hide_window()
+            return {'ok': True, 'closed': False}
+        self.quit()
+        return {'ok': True, 'closed': True}
 
     def minimize(self):
         if self._window:

@@ -73,6 +73,14 @@
             <div id="sidebar-providers" class="ab-nav__list"></div>
             <button id="btn-providers" class="ab-nav__link" type="button">Gerenciar provedores →</button>
           </div>
+
+          <div class="ab-nav__group">
+            <p class="ab-nav__title">Sistema</p>
+            <button id="btn-settings" class="ab-navitem" type="button">
+              <span class="ab-navdot ab-navdot--idle"></span>
+              <span class="ab-navitem__name">Configurações</span>
+            </button>
+          </div>
         </nav>
 
         <div class="ab-sidebar__footer">
@@ -170,6 +178,41 @@
             </button>
           </div>
           <div id="provider-list-screen" class="ab-provider-list"></div>
+        </section>
+
+        <!-- Screen: Settings -->
+        <section data-screen="settings" class="ab-screen" hidden>
+          <div class="ab-page-head">
+            <div>
+              <h1 class="ab-page-title">Configurações</h1>
+              <p class="ab-page-sub">Preferências do aplicativo e estado do proxy</p>
+            </div>
+          </div>
+
+          <div class="ab-card">
+            <div class="ab-field">
+              <label class="ab-check">
+                <input id="set-start-with-windows" type="checkbox" />
+                Iniciar com o Windows (na bandeja)
+              </label>
+              <p class="ab-hint">Cria uma entrada reversível em HKCU\...\Run; desligar remove a entrada.</p>
+            </div>
+            <div class="ab-divider"></div>
+            <div class="ab-field">
+              <label class="ab-check">
+                <input id="set-close-to-tray" type="checkbox" />
+                Fechar (X) para a bandeja em vez de encerrar
+              </label>
+              <p class="ab-hint">Com isso o proxy continua ativo; use “Sair” no menu da bandeja para encerrar.</p>
+            </div>
+            <div class="ab-divider"></div>
+            <div class="ab-inline">
+              <span class="ab-label">Proxy</span>
+              <span id="settings-proxy" class="ab-hint">—</span>
+            </div>
+          </div>
+
+          <p class="ab-hint">Atalho ALT+F4 sempre encerra o aplicativo.</p>
         </section>
 
         <!-- Screen: Add / Edit provider -->

@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+import time
 import shutil
 from pathlib import Path
 from typing import Optional
@@ -30,13 +31,52 @@ def _default() -> dict:
     return {'providers': [], 'port': DEFAULT_PORT}
 
 
+SETTINGS_DEFAULTS = {
+    'close_to_tray': False,
+    'start_with_windows': False,
+    'start_minimized': False,
+}
+
+
 def load() -> dict:
     if not CONFIG_FILE.exists():
         return _default()
     try:
-        return json.loads(CONFIG_FILE.read_text('utf-8'))
+        data = json.loads(CONFIG_FILE.read_text('utf-8'))
     except Exception:
+        # Configuração corrompida: preserva o arquivo para diagnóstico em vez de
+        # apagá-lo silenciosamente, e segue com os padrões.
+        try:
+            backup = CONFIG_FILE.with_name(f'config.corrupt-{int(time.time())}.json')
+            CONFIG_FILE.replace(backup)
+            log.error('config: JSON inválido; arquivo preservado em %s', backup.name)
+        except OSError:
+            log.error('config: JSON inválido e não foi possível preservar o arquivo')
         return _default()
+    if not isinstance(data, dict):
+        log.error('config: conteúdo inesperado; usando padrões')
+        return _default()
+    return data
+
+
+def get_settings() -> dict:
+    """Preferências de desktop com padrões garantidos."""
+    data = load()
+    stored = data.get('settings') if isinstance(data.get('settings'), dict) else {}
+    merged = dict(SETTINGS_DEFAULTS)
+    merged.update({k: v for k, v in stored.items() if k in SETTINGS_DEFAULTS})
+    return merged
+
+
+def update_settings(**changes) -> dict:
+    settings = get_settings()
+    for key, value in changes.items():
+        if key in SETTINGS_DEFAULTS:
+            settings[key] = bool(value) if isinstance(SETTINGS_DEFAULTS[key], bool) else value
+    data = load()
+    data['settings'] = settings
+    save(data)
+    return settings
 
 
 def save(data: dict):

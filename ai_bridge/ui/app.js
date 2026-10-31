@@ -60,6 +60,7 @@ function go(screen, extra) {
   else if (screen === 'target') { _currentTarget = extra; renderTarget(extra); }
   else if (screen === 'providers') renderProviders();
   else if (screen === 'add') { _editingProvider = extra || null; renderAdd(extra); }
+  else if (screen === 'settings') renderSettings();
   renderSidebar();
 }
 
@@ -102,6 +103,9 @@ function renderSidebar() {
       btn.addEventListener('click', () => go('add', btn.dataset.navProvider));
     });
   }
+
+  const settingsBtn = document.getElementById('btn-settings');
+  if (settingsBtn) settingsBtn.classList.toggle('is-active', _currentScreen === 'settings');
 
   const countEl = document.getElementById('home-provider-count');
   if (countEl) countEl.textContent = providers.length;
@@ -357,6 +361,20 @@ async function pollOauth(name, tries = 90) {
       return;
     }
   }
+}
+
+// ── Configurações ─────────────────────────────────────────────────────────────
+
+async function renderSettings() {
+  const res = await api('get_settings');
+  if (!res || !res.ok) return;
+  const settings = res.settings || {};
+  const start = document.getElementById('set-start-with-windows');
+  const close = document.getElementById('set-close-to-tray');
+  if (start) start.checked = !!settings.start_with_windows;
+  if (close) close.checked = !!settings.close_to_tray;
+  const proxyEl = document.getElementById('settings-proxy');
+  if (proxyEl) proxyEl.textContent = res.port ? `ativo · porta ${res.port}` : 'parado';
 }
 
 // ── Wizard (Adicionar provedor em 2 passos) ───────────────────────────────────
@@ -750,8 +768,8 @@ function wireControls() {
   });
   document.getElementById('btn-close')?.addEventListener('click', () => {
     const api = window.pywebview?.api;
-    if (api?.quit) api.quit();
-    else if (api?.close) api.close();
+    if (api?.request_close) api.request_close();
+    else if (api?.quit) api.quit();
   });
 
   // Home: providers button
@@ -763,7 +781,25 @@ function wireControls() {
   // Providers back + add
   document.getElementById('btn-back-providers')?.addEventListener('click', () => go('home'));
   document.getElementById('btn-add-sidebar')?.addEventListener('click', () => go('add'));
+  document.getElementById('btn-settings')?.addEventListener('click', () => go('settings'));
   document.getElementById('btn-add-from-providers')?.addEventListener('click', () => go('add'));
+
+  const bindSetting = (id, key) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.addEventListener('change', async () => {
+      const res = await api('set_setting', key, el.checked);
+      if (!res || !res.ok) {
+        el.checked = !el.checked;
+        toast(res?.error || 'Não foi possível salvar a preferência.', 'error');
+        return;
+      }
+      toast('Preferência salva.', 'success');
+      renderSettings();
+    });
+  };
+  bindSetting('set-start-with-windows', 'start_with_windows');
+  bindSetting('set-close-to-tray', 'close_to_tray');
 
   // Atalho para a extensão Cookie Editor (Chrome Web Store)
   document.getElementById('btn-cookie-editor')?.addEventListener('click', async () => {
