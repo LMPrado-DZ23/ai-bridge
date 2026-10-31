@@ -132,3 +132,21 @@ python -m pytest tests/test_oauth.py tests/test_proxy_oauth.py -v
 ```
 
 Os testes usam fixtures (`tmp_path` + `CODEX_HOME`/`AI_BRIDGE_*`), nunca credenciais reais.
+
+## Por que não usamos cookies de navegador
+
+Foi avaliado integrar um coletor de cookies (por exemplo a extensão GPL-3.0
+`buigiathanh/Cookie_Editor`) para usar a cota de uma IA logada no navegador. **Decisão: não.**
+
+| Motivo | Detalhe |
+|---|---|
+| Segurança | cookie de sessão do ChatGPT/Claude/Gemini é credencial da conta inteira, sem escopo; guardá-lo no app quebra o modelo atual (segredo só no keyring/arquivo da CLI) e amplia o dano de qualquer bug |
+| Termos de uso | automação com sessão web viola os termos de OpenAI/Anthropic/Google e pode suspender a conta |
+| Fragilidade | Cloudflare, rotação de cookie, device binding e captcha derrubam o fluxo; a ponte do ChatGPT Web já falhou aqui por budget (28k de transporte vs 43,7k de payload) |
+| Licença | o Cookie_Editor é GPL-3.0; incorporá-lo a um projeto MIT cria conflito de licença (só caberia como ferramenta externa, sem código embutido) |
+| Extensão de navegador | exigiria permissão de ler cookies de todos os sites, um custo de confiança desproporcional para um app desktop |
+| Alternativa correta | reaproveitar a sessão OAuth da própria CLI (seção 1) — mesma conta, mesma cota, dentro das regras do provedor |
+
+Se algum dia isso for revisitado, deve ser um módulo **opt-in, separado e explicitamente
+não suportado**, sem persistir cookies e sem entrar no núcleo do proxy — nunca embutido no
+aplicativo distribuído.
