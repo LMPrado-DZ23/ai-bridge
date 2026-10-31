@@ -336,5 +336,6 @@ def test_api_key_provider_env_var_missing(monkeypatch):
     monkeypatch.delenv('AI_BRIDGE_ENV_KEY_MISSING', raising=False)
     provider = {'name': 'Env', 'base_url': 'https://api.example.com/v1', 'api_key': '',
                 'env_key': 'AI_BRIDGE_ENV_KEY_MISSING', 'models': []}
-    assert oauth.resolve(provider).headers['Authorization'] == 'Bearer '
+    resolved = oauth.resolve(provider)
+    assert 'Authorization' not in resolved.headers  # sem chave, sem header vazio
     assert oauth.status(provider)['has_key'] is False

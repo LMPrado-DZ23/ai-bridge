@@ -814,12 +814,14 @@ def resolve(provider: dict, *, protocol: str = '', force_refresh: bool = False) 
         key = str(provider.get('api_key') or '')
         if not key and provider.get('env_key'):
             key = os.environ.get(str(provider['env_key']), '')
+        headers = {
+            'Content-Type': 'application/json',
+            'User-Agent': USER_AGENT,
+        }
+        if key.strip():
+            headers['Authorization'] = f'Bearer {key.strip()}'
         return ResolvedAuth(
-            headers={
-                'Authorization': f'Bearer {key}',
-                'Content-Type': 'application/json',
-                'User-Agent': USER_AGENT,
-            },
+            headers=headers,
             base_url=str(provider.get('base_url', '')).rstrip('/'),
             protocol=protocol or str(provider.get('protocol', '') or 'chat'),
         )

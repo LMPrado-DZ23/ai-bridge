@@ -110,3 +110,18 @@ def test_bridge_fetch_models_codex_oauth_has_friendly_error(bridge, monkeypatch)
     res = bridge.fetch_models('Codex (OAuth)')
     assert res['ok'] is False
     assert '/models' in res['error']
+
+
+def test_fetch_models_drops_empty_headers(monkeypatch):
+    captured = {}
+
+    def fake_get(url, headers=None, timeout=None):
+        captured['headers'] = headers
+        return FakeResponse(payload={'data': [{'id': 'm'}]})
+
+    monkeypatch.setattr(discovery.httpx, 'get', fake_get)
+    result = discovery.fetch_models('https://x.example/v1',
+                                    {'Authorization': 'Bearer ', 'Content-Type': 'application/json'})
+    assert result['ok'] is True
+    assert 'Authorization' not in captured['headers']
+    assert captured['headers']['Content-Type'] == 'application/json'

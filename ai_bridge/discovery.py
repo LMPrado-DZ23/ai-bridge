@@ -60,6 +60,19 @@ def fetch_models(base_url: str, headers: dict, provider_name: str = '',
     base = (base_url or '').rstrip('/')
     if not base:
         return {'ok': False, 'error': 'Informe a URL base do provedor.'}
+    # Cabeçalhos vazios ("Bearer ") quebram o httpx; provedores sem chave
+    # (Ollama local, por exemplo) funcionam sem Authorization.
+    cleaned_headers = {}
+    for key, value in (headers or {}).items():
+        if not isinstance(value, str):
+            continue
+        stripped = value.strip()
+        if not stripped:
+            continue
+        if key.lower() == 'authorization' and stripped.lower() == 'bearer':
+            continue
+        cleaned_headers[key] = stripped
+    headers = cleaned_headers
 
     attempts = [(base + '/models', headers)]
     # Ollama expõe /api/tags no servidor nativo, além de /v1/models.
