@@ -1,7 +1,7 @@
 """Global test isolation: never touch the user's real AI Bridge config or keyring."""
 import pytest
 
-from ai_bridge import config
+from ai_bridge import config, eventlog
 
 
 @pytest.fixture(autouse=True)
@@ -13,4 +13,6 @@ def _isolated_config(tmp_path, monkeypatch):
     monkeypatch.setattr(config, '_set_key', lambda *args, **kwargs: None)
     monkeypatch.setattr(config, '_delete_key', lambda *args, **kwargs: None)
     monkeypatch.setattr(config, '_get_key', lambda *args, **kwargs: '')
+    # The proxy appends request events; keep them out of the real user log.
+    monkeypatch.setattr(eventlog, 'LOG_DIR', tmp_path / 'logs')
     yield
