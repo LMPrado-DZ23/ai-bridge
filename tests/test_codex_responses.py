@@ -149,6 +149,82 @@ def test_claude_desktop_model_list_uses_compatible_aliases_and_preserves_upstrea
     assert config.get_model_id("claude-sonnet-5-2") == "deepseek-v4-pro"
 
 
+def test_parallel_function_calls_become_one_assistant_message():
+    """Codex emits N function_call items before the N function_call_output items.
+
+    Chat Completions (DeepSeek included) requires every assistant message with
+    tool_calls to be followed by the tool messages for *all* its ids, so the
+    calls of one turn must share a single assistant message.
+    """
+    request = responses_api.to_chat_request({
+        "input": [
+            {"type": "message", "role": "user", "content": [
+                {"type": "input_text", "text": "list files"}
+            ]},
+            {"type": "function_call", "call_id": "call_A", "name": "shell", "arguments": '{"cmd":"dir"}'},
+            {"type": "function_call", "call_id": "call_B", "name": "shell", "arguments": '{"cmd":"pwd"}'},
+            {"type": "function_call_output", "call_id": "call_A", "output": "a.txt"},
+            {"type": "function_call_output", "call_id": "call_B", "output": "C:\\"},
+        ],
+    }, "deepseek-flash")
+
+    assert [message["role"] for message in request["messages"]] == [
+        "user", "assistant", "tool", "tool",
+    ]
+    assistant = request["messages"][1]
+    assert assistant["content"] is None
+    assert [call["id"] for call in assistant["tool_calls"]] == ["call_A", "call_B"]
+    assert [call["function"]["name"] for call in assistant["tool_calls"]] == ["shell", "shell"]
+    assert [message["tool_call_id"] for message in request["messages"][2:]] == ["call_A", "call_B"]
+
+
+def test_sequential_function_calls_keep_one_assistant_message_each():
+    request = responses_api.to_chat_request({
+        "input": [
+            {"type": "function_call", "call_id": "call_A", "name": "shell", "arguments": "{}"},
+            {"type": "function_call_output", "call_id": "call_A", "output": "a"},
+            {"type": "function_call", "call_id": "call_B", "name": "shell", "arguments": "{}"},
+            {"type": "function_call_output", "call_id": "call_B", "output": "b"},
+        ],
+    }, "deepseek-flash")
+
+    roles = [message["role"] for message in request["messages"]]
+    assert roles == ["assistant", "tool", "assistant", "tool"]
+    assert [[call["id"] for call in m["tool_calls"]] for m in request["messages"] if m["role"] == "assistant"] == [
+        ["call_A"], ["call_B"],
+    ]
+
+
+def test_function_call_output_accepts_structured_output():
+    request = responses_api.to_chat_request({
+        "input": [
+            {"type": "function_call", "call_id": "call_A", "name": "read", "arguments": "{}"},
+            {"type": "function_call_output", "call_id": "call_A", "output": {"ok": True, "lines": 2}},
+        ],
+    }, "deepseek-flash")
+
+    assert request["messages"][1]["content"] == '{"ok": true, "lines": 2}'
+
+
+def test_reasoning_effort_is_not_forwarded_by_default():
+    """Ollama rejects reasoning_effort on models without thinking support."""
+    request = responses_api.to_chat_request({
+        "input": "oi",
+        "reasoning": {"effort": "high"},
+    }, "qwen2.5-coder:7b")
+
+    assert "reasoning_effort" not in request
+
+
+def test_reasoning_effort_is_forwarded_for_reasoning_capable_provider():
+    request = responses_api.to_chat_request({
+        "input": "oi",
+        "reasoning": {"effort": "high"},
+    }, "deepseek-flash", supports_reasoning=True)
+
+    assert request["reasoning_effort"] == "high"
+
+
 def test_responses_developer_role_is_mapped_to_supported_system_role():
     request = responses_api.to_chat_request({
         "input": [

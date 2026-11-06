@@ -3,6 +3,7 @@ Local HTTP proxy that implements the Anthropic Messages API and routes to
 OpenAI-compatible providers based on the model prefix.
 """
 import json
+import re
 import socket
 import threading
 import logging
@@ -139,6 +140,35 @@ def _resolve(provider: dict, *, force_refresh: bool = False) -> oauth.ResolvedAu
 def _explicit_provider() -> str:
     """Provedor escolhido por nome: header X-AI-Bridge-Provider ou ?provider=."""
     return (request.headers.get('X-AI-Bridge-Provider') or request.args.get('provider') or '').strip()
+
+
+_TOOL_NAME_RE = re.compile(r'[a-zA-Z0-9_-]{1,128}\Z')
+
+
+def _deepseek_safe_tools(tools, model: str):
+    """Drop tool definitions DeepSeek's Responses API refuses.
+
+    Codex ships extra tool kinds (``namespace`` bundles, ``web_search``) whose
+    names contain ``::`` and whose schemas use pointers DeepSeek rejects with a
+    400 ("Invalid schema for function ..."). Keeping only the tools DeepSeek
+    documents (``function``, ``custom``/apply_patch, and ``web_search`` on the
+    pro model) keeps the request valid; the dropped ones could never run there.
+    """
+    if not isinstance(tools, list):
+        return tools
+    safe = []
+    for tool in tools:
+        if not isinstance(tool, dict):
+            continue
+        kind = tool.get('type')
+        name = str(tool.get('name', ''))
+        if kind == 'function' and _TOOL_NAME_RE.match(name):
+            safe.append(tool)
+        elif kind == 'custom' and name == 'apply_patch':
+            safe.append(tool)
+        elif kind == 'web_search' and str(model).startswith('deepseek-v4-pro'):
+            safe.append(tool)
+    return safe
 
 
 def _select_target(model: str, explicit_provider: str = ''):
@@ -445,6 +475,8 @@ def responses():
     if auth.protocol == 'responses':
         url = auth.base_url.rstrip('/') + '/responses'
         payload = {**data, 'model': actual_model}
+        if 'deepseek.com' in auth.base_url.lower() and 'tools' in payload:
+            payload['tools'] = _deepseek_safe_tools(payload.get('tools'), actual_model)
         # O backend do ChatGPT (Codex OAuth) recusa a requisição sem "store": false
         # explícito; outros provedores Responses decidem por conta própria.
         if (auth.source == 'codex' or 'chatgpt.com' in auth.base_url) and 'store' not in payload:
@@ -453,7 +485,8 @@ def responses():
                             bool(data.get('stream')), provider=provider)
 
     try:
-        chat_request = responses_api.to_chat_request(data, actual_model)
+        chat_request = responses_api.to_chat_request(
+            data, actual_model, supports_reasoning=bool(provider.get('supports_reasoning')))
     except ValueError as exc:
         return jsonify({'error': {'message': str(exc), 'type': 'invalid_request_error'}}), 400
 

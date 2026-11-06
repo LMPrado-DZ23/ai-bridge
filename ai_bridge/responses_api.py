@@ -4,7 +4,7 @@ import uuid
 import time
 
 
-def to_chat_request(data: dict, upstream_model: str) -> dict:
+def to_chat_request(data: dict, upstream_model: str, supports_reasoning: bool = False) -> dict:
     messages = []
     instructions = data.get("instructions")
     if instructions:
@@ -15,29 +15,44 @@ def to_chat_request(data: dict, upstream_model: str) -> dict:
         if input_items:
             messages.append({"role": "user", "content": input_items})
     elif isinstance(input_items, list):
+        # Chat Completions requires one assistant message carrying every
+        # tool_call of a turn, followed by the tool messages for all of them.
+        # The Responses API lists each call as its own item, so consecutive
+        # function_call items are buffered and flushed as a single message.
+        pending_calls = []
+
+        def flush_calls():
+            if pending_calls:
+                messages.append({
+                    "role": "assistant",
+                    "content": None,
+                    "tool_calls": list(pending_calls),
+                })
+                pending_calls.clear()
+
         for item in input_items:
             if not isinstance(item, dict):
                 continue
             kind = item.get("type", "message")
+            if kind == "function_call":
+                pending_calls.append({
+                    "id": str(item.get("call_id") or item.get("id") or uuid.uuid4().hex),
+                    "type": "function",
+                    "function": {
+                        "name": str(item.get("name", "")),
+                        "arguments": str(item.get("arguments", "{}")),
+                    },
+                })
+                continue
+            flush_calls()
             if kind == "function_call_output":
+                output = item.get("output", "")
+                if not isinstance(output, str):
+                    output = json.dumps(output, ensure_ascii=False)
                 messages.append({
                     "role": "tool",
                     "tool_call_id": str(item.get("call_id", "")),
-                    "content": str(item.get("output", "")),
-                })
-                continue
-            if kind == "function_call":
-                messages.append({
-                    "role": "assistant",
-                    "content": None,
-                    "tool_calls": [{
-                        "id": str(item.get("call_id") or item.get("id") or uuid.uuid4().hex),
-                        "type": "function",
-                        "function": {
-                            "name": str(item.get("name", "")),
-                            "arguments": str(item.get("arguments", "{}")),
-                        },
-                    }],
+                    "content": output,
                 })
                 continue
             role = item.get("role", "user")
@@ -59,6 +74,7 @@ def to_chat_request(data: dict, upstream_model: str) -> dict:
                 content = "\n".join(pieces)
             if role in ("system", "developer", "user", "assistant"):
                 messages.append({"role": role, "content": content})
+        flush_calls()
 
     if not messages:
         messages = [{"role": "user", "content": ""}]
@@ -91,7 +107,10 @@ def to_chat_request(data: dict, upstream_model: str) -> dict:
                 })
         request["tools"] = tools
     reasoning = data.get("reasoning")
-    if isinstance(reasoning, dict) and reasoning.get("effort"):
+    # Most OpenAI-compatible chat backends reject an effort they do not know
+    # (Ollama answers 400 "does not support thinking"), so the field is only
+    # forwarded when the provider is explicitly declared reasoning-capable.
+    if supports_reasoning and isinstance(reasoning, dict) and reasoning.get("effort"):
         request["reasoning_effort"] = reasoning["effort"]
     return request
 
